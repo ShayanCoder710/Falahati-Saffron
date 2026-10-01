@@ -1,0 +1,16 @@
+{% extends "base.html" %}
+{% block title %}درباره ما - زعفران فلاحتی{% endblock %}
+{% block content %}
+<div class="container">
+    <div class="about-page">
+        <h1 class="page-title">درباره ما</h1>
+        <div class="about-content">
+            {% if content %}
+                {{ content | safe }}
+            {% else %}
+                <p>زعفران فلاحتی با سال‌ها تجربه در تولید و عرضه زعفران مرغوب، آماده خدمت‌رسانی به شما عزیزان است.</p>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}

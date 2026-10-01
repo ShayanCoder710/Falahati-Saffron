@@ -1,0 +1,21 @@
+{% extends "base.html" %}
+{% block title %}ورود به پنل مدیریت - زعفران فلاحتی{% endblock %}
+{% block content %}
+<div class="container">
+    <div class="login-container">
+        <h1>ورود به پنل مدیریت</h1>
+        <form method="POST" class="login-form">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <div class="form-group">
+                <label for="username">نام کاربری</label>
+                <input type="text" id="username" name="username" required placeholder="نام کاربری ادمین">
+            </div>
+            <div class="form-group">
+                <label for="password">رمز عبور</label>
+                <input type="password" id="password" name="password" required placeholder="رمز عبور">
+            </div>
+            <button type="submit" class="btn btn-primary btn-block">ورود</button>
+        </form>
+    </div>
+</div>
+{% endblock %}

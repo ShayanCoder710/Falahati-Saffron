@@ -1,0 +1,52 @@
+{% extends "base.html" %}
+{% block title %}سبد خرید - زعفران فلاحتی{% endblock %}
+{% block content %}
+<div class="container">
+    <h1 class="page-title">سبد خرید</h1>
+    {% if items %}
+    <div class="cart-container">
+        <div class="cart-items">
+            {% for item in items %}
+            <div class="cart-item">
+                <div class="cart-item-image">
+                    {% if item.product.image %}
+                        <img src="{{ url_for('static', filename='images/' + item.product.image) }}" alt="{{ item.product.name }}">
+                    {% else %}
+                        <div class="placeholder"><img src="{{ url_for('static', filename='images/icon.png') }}" alt="" style="width:100%;height:100%;object-fit:contain;padding:10px;"></div>
+                    {% endif %}
+                </div>
+                <div class="cart-item-info">
+                    <h3>{{ item.product.name }}</h3>
+                    <p class="price">{{ "{:,.0f}".format(item.product.price) }} تومان</p>
+                </div>
+                <div class="cart-item-quantity">
+                    <form method="POST" action="{{ url_for('cart_update', iid=loop.index0) }}" class="qty-form">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        <input type="number" name="quantity" value="{{ item.quantity }}" min="1" max="{{ item.max_qty }}">
+                        <button type="submit" class="btn btn-sm btn-secondary">تأیید</button>
+                    </form>
+                    {% if item.max_qty <= 10 %}<small class="qty-note">حداکثر {{ item.max_qty }} عدد</small>{% endif %}
+                </div>
+                <div class="cart-item-total">{{ "{:,.0f}".format(item.product.price * item.quantity) }} تومان</div>
+                <form method="POST" action="{{ url_for('cart_remove', iid=loop.index0) }}">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <button type="submit" class="btn-remove" title="حذف">×</button>
+                </form>
+            </div>
+            {% endfor %}
+        </div>
+        <div class="cart-summary">
+            <h2>جمع کل</h2>
+            <p class="total-price">{{ "{:,.0f}".format(total) }} تومان</p>
+            <a href="{{ url_for('checkout') }}" class="btn btn-primary btn-block">ادامه خرید</a>
+            <a href="{{ url_for('home') }}" class="btn btn-secondary btn-block" style="margin-top:.5rem;">بازگشت</a>
+        </div>
+    </div>
+    {% else %}
+    <div class="empty-cart">
+        <p>سبد خرید شما خالی است</p>
+        <a href="{{ url_for('home') }}" class="btn btn-primary">مشاهده محصولات</a>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

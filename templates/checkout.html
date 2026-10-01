@@ -1,0 +1,42 @@
+{% extends "base.html" %}
+{% block title %}تکمیل خرید - زعفران فلاحتی{% endblock %}
+{% block content %}
+<div class="container">
+    <h1 class="page-title">تکمیل خرید</h1>
+    {% if not stock_ok %}
+    <div class="alert alert-danger">برای برخی اقلام، موجودی انبار کمتر از تعداد سبد شماست — تعداد را در سبد خرید کاهش دهید.</div>
+    {% endif %}
+    <div class="checkout-container">
+        <div class="checkout-summary">
+            <h2>خلاصه سفارش</h2>
+            {% for item in items %}
+            <div class="summary-item">
+                <span>{{ item.product.name }} × {{ item.quantity }}</span>
+                <span>{{ "{:,.0f}".format(item.product.price * item.quantity) }} تومان</span>
+            </div>
+            {% endfor %}
+            <div class="summary-total">
+                <span>جمع کل</span>
+                <span>{{ "{:,.0f}".format(total) }} تومان</span>
+            </div>
+        </div>
+        <form method="POST" class="checkout-form">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <h2>اطلاعات ارسال</h2>
+            <div class="form-group">
+                <label for="name">نام و نام خانوادگی</label>
+                <input type="text" id="name" name="name" value="{{ user.full_name or '' }}" required placeholder="نام و نام خانوادگی">
+            </div>
+            <div class="form-group">
+                <label for="phone">شماره تماس</label>
+                <input type="tel" id="phone" name="phone" value="{{ user.phone or '' }}" required placeholder="09xxxxxxxxx">
+            </div>
+            <div class="form-group">
+                <label for="address">آدرس کامل</label>
+                <textarea id="address" name="address" required placeholder="آدرس پستی برای ارسال محصول">{{ user.address or '' }}</textarea>
+            </div>
+            <button type="submit" class="btn btn-primary btn-block">ثبت سفارش</button>
+        </form>
+    </div>
+</div>
+{% endblock %}

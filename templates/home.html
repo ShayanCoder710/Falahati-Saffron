@@ -1,0 +1,52 @@
+{% extends "base.html" %}
+{% block title %}صفحه اصلی - زعفران فلاحتی{% endblock %}
+{% block content %}
+<section class="hero">
+    <div class="container">
+        <h1>زعفران اصل فلاحتی</h1>
+        <p>کیفیت برتر · طعم بی‌نظیر · ارسال به سراسر کشور</p>
+        <a href="#products" class="btn btn-primary btn-lg">مشاهده محصولات</a>
+    </div>
+</section>
+
+<section class="products-section" id="products" style="padding:3rem 0;">
+    <div class="container">
+        <h2 class="section-title">محصولات ما</h2>
+        {% if products %}
+        <div class="products-grid">
+            {% for p in products %}
+            <div class="product-card">
+                {% if p.image %}
+                    <img src="{{ url_for('static', filename='images/' + p.image) }}" alt="{{ p.name }}" class="product-image">
+                {% else %}
+                    <div class="product-image-placeholder"><img src="{{ url_for('static', filename='images/icon.png') }}" alt="" style="width:60px;height:60px;object-fit:contain;"></div>
+                {% endif %}
+                <div class="product-info">
+                    <h3>{{ p.name }}</h3>
+                    <p class="product-price">{{ "{:,.0f}".format(p.price) }} تومان</p>
+                    {% if p.stock > 0 %}
+                        <span class="stock-in">موجود در انبار ({{ p.stock }} عدد)</span>
+                    {% else %}
+                        <span class="stock-out">ناموجود</span>
+                    {% endif %}
+                    <div class="product-actions">
+                        <a href="{{ url_for('product_detail', pid=p.id) }}" class="btn btn-secondary btn-sm">جزئیات</a>
+                        {% if p.stock > 0 %}
+                        <form method="POST" action="{{ url_for('cart') }}" class="add-to-cart">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                            <input type="hidden" name="product_id" value="{{ p.id }}">
+                            <input type="hidden" name="quantity" value="1">
+                            <button type="submit" class="btn btn-primary btn-sm">افزودن به سبد</button>
+                        </form>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        {% else %}
+            <p class="no-products">محصولی وجود ندارد</p>
+        {% endif %}
+    </div>
+</section>
+{% endblock %}

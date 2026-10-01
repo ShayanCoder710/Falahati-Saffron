@@ -1,0 +1,42 @@
+{% extends "base.html" %}
+{% block title %}{{ product.name }} - زعفران فلاحتی{% endblock %}
+{% block content %}
+<div class="container">
+    <div class="product-detail">
+        <div class="product-detail-image">
+            {% if product.image %}
+                <img src="{{ url_for('static', filename='images/' + product.image) }}" alt="{{ product.name }}">
+            {% else %}
+                <div class="image-placeholder"><img src="{{ url_for('static', filename='images/icon.png') }}" alt="" style="width:80px;height:80px;object-fit:contain;"></div>
+            {% endif %}
+        </div>
+        <div class="product-detail-info">
+            <h1>{{ product.name }}</h1>
+            {% if product.code %}<span class="product-code">کد: {{ product.code }}</span>{% endif %}
+            <p class="price">{{ "{:,.0f}".format(product.price) }} تومان</p>
+            {% if product.description %}
+                <p class="description">{{ product.description }}</p>
+            {% endif %}
+            <div class="stock-info" style="margin-bottom:1.5rem;">
+                {% if product.stock > 0 %}
+                    <span class="stock-in">موجود در انبار ({{ product.stock }} عدد)</span>
+                {% else %}
+                    <span class="stock-out">ناموجود</span>
+                {% endif %}
+            </div>
+            {% if product.stock > 0 %}
+            <form method="POST" action="{{ url_for('cart') }}" class="add-to-cart-form">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <input type="hidden" name="product_id" value="{{ product.id }}">
+                <div class="quantity-input">
+                    <label for="qty">تعداد:</label>
+                    <input type="number" id="qty" name="quantity" value="1" min="1" max="{{ product.stock }}">
+                </div>
+                <button type="submit" class="btn btn-primary btn-lg">افزودن به سبد خرید</button>
+            </form>
+            {% endif %}
+            <a href="{{ url_for('home') }}" class="btn btn-secondary" style="margin-top:.8rem;">بازگشت</a>
+        </div>
+    </div>
+</div>
+{% endblock %}

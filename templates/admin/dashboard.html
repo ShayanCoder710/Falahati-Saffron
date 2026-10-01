@@ -1,0 +1,114 @@
+{% extends "base.html" %}
+{% block title %}پنل مدیریت - زعفران فلاحتی{% endblock %}
+{% block content %}
+<div class="container">
+    <h1 class="page-title">پنل مدیریت</h1>
+
+    <div class="dashboard-stats">
+        <div class="stat-card">
+            <h3>تعداد محصولات</h3>
+            <p class="stat-number">{{ products_count }}</p>
+        </div>
+        <div class="stat-card">
+            <h3>تعداد سفارشات</h3>
+            <p class="stat-number">{{ orders_count }}</p>
+        </div>
+        <div class="stat-card">
+            <h3>تعداد کاربران</h3>
+            <p class="stat-number">{{ users_count }}</p>
+        </div>
+        <div class="stat-card">
+            <h3>سفارشات در انتظار</h3>
+            <p class="stat-number">{{ pending_orders }}</p>
+        </div>
+        <div class="stat-card">
+            <h3>سفارشات پرداخت شده</h3>
+            <p class="stat-number">{{ paid_orders }}</p>
+        </div>
+    </div>
+
+    <div style="display:flex; gap:1rem; margin-bottom:2rem; flex-wrap:wrap;">
+        <a href="{{ url_for('admin_products') }}" class="btn btn-primary">مدیریت محصولات</a>
+        <a href="{{ url_for('admin_orders') }}" class="btn btn-secondary">مدیریت سفارشات</a>
+        <a href="{{ url_for('admin_users') }}" class="btn btn-secondary">مدیریت کاربران</a>
+        <a href="{{ url_for('admin_about') }}" class="btn btn-secondary">درباره ما</a>
+    </div>
+
+    <div class="dashboard-section">
+        <h2>افزودن سریع محصول</h2>
+        <form method="POST" action="{{ url_for('admin_product_add') }}" enctype="multipart/form-data" class="quick-add-form">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <div class="quick-add-grid">
+                <div class="form-group">
+                    <label for="q_code">کد محصول</label>
+                    <input type="text" id="q_code" name="code" placeholder="مثلاً SA-001">
+                </div>
+                <div class="form-group">
+                    <label for="q_name">نام محصول</label>
+                    <input type="text" id="q_name" name="name" placeholder="نام محصول را وارد کنید" required>
+                </div>
+                <div class="form-group">
+                    <label for="q_price">قیمت (تومان)</label>
+                    <input type="number" id="q_price" name="price" step="0.01" placeholder="مثلاً 500000" required>
+                </div>
+                <div class="form-group">
+                    <label for="q_stock">موجودی</label>
+                    <input type="number" id="q_stock" name="stock" min="0" placeholder="0">
+                </div>
+                <div class="form-group">
+                    <label for="q_image">عکس محصول</label>
+                    <input type="file" id="q_image" name="image" accept="image/*">
+                </div>
+            </div>
+            <div class="form-group">
+                <label for="q_desc">توضیحات</label>
+                <textarea id="q_desc" name="description" rows="3" placeholder="توضیحات محصول"></textarea>
+            </div>
+            <button type="submit" class="btn btn-primary">افزودن محصول</button>
+        </form>
+    </div>
+
+    <div class="dashboard-section">
+        <h2>سفارشات اخیر</h2>
+        {% if recent_orders %}
+        <div style="overflow-x:auto;">
+            <table class="data-table">
+                <thead><tr>
+                    <th>شماره</th><th>مشتری</th><th>تلفن</th><th>مبلغ</th><th>وضعیت</th><th>تاریخ</th>
+                </tr></thead>
+                <tbody>
+                {% for o in recent_orders %}
+                <tr>
+                    <td>{{ o.id }}</td>
+                    <td>{{ o.customer_name }}</td>
+                    <td>{{ o.customer_phone }}</td>
+                    <td>{{ "{:,.0f}".format(o.total_price) }} تومان</td>
+                    <td><span class="status-badge status-{{ o.status }}">{{ o.status }}</span></td>
+                    <td>{{ o.created_at.strftime('%Y/%m/%d %H:%M') }}</td>
+                </tr>
+                {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+            <p>سفارشی ثبت نشده است</p>
+        {% endif %}
+    </div>
+
+    <div class="dashboard-section">
+        <h2>محصولات کم‌موجودی</h2>
+        {% if low_stock_products %}
+        <table class="data-table">
+            <thead><tr><th>محصول</th><th>موجودی</th></tr></thead>
+            <tbody>
+            {% for p in low_stock_products %}
+                <tr><td>{{ p.name }}</td><td>{{ p.stock }}</td></tr>
+            {% endfor %}
+            </tbody>
+        </table>
+        {% else %}
+            <p>همه محصولات موجودی کافی دارند</p>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

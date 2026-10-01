@@ -1,0 +1,18 @@
+{% extends "base.html" %}
+{% block title %}مدیریت درباره ما - زعفران فلاحتی{% endblock %}
+{% block content %}
+<div class="container">
+    <h1 class="page-title">مدیریت صفحه درباره ما</h1>
+    <form method="POST" class="form-container">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <div class="form-group">
+            <label for="content">متن درباره ما</label>
+            <textarea id="content" name="content" rows="10" placeholder="متن صفحه درباره ما را بنویسید...">{{ content }}</textarea>
+        </div>
+        <div class="form-actions">
+            <button type="submit" class="btn btn-primary">ذخیره</button>
+            <a href="{{ url_for('admin_dashboard') }}" class="btn btn-secondary">انصراف</a>
+        </div>
+    </form>
+</div>
+{% endblock %}

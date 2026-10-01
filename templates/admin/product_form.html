@@ -1,0 +1,47 @@
+{% extends "base.html" %}
+{% block title %}{% if product %}ویرایش محصول{% else %}افزودن محصول{% endif %} - زعفران فلاحتی{% endblock %}
+{% block content %}
+<div class="container">
+    <h1 class="page-title">{% if product %}ویرایش محصول{% else %}افزودن محصول{% endif %}</h1>
+    <form method="POST" enctype="multipart/form-data" class="form-container">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <div class="form-group">
+            <label for="code">کد محصول</label>
+            <input type="text" id="code" name="code" value="{{ product.code if product else '' }}" placeholder="مثلاً SA-001">
+        </div>
+        <div class="form-group">
+            <label for="name">نام محصول</label>
+            <input type="text" id="name" name="name" value="{{ product.name if product else '' }}" placeholder="نام محصول را وارد کنید" required>
+        </div>
+        <div class="form-group">
+            <label for="description">توضیحات</label>
+            <textarea id="description" name="description" rows="4" placeholder="توضیحات محصول">{{ product.description if product else '' }}</textarea>
+        </div>
+        <div class="form-group">
+            <label for="price">قیمت (تومان)</label>
+            <input type="number" id="price" name="price" step="0.01" value="{{ product.price if product else '' }}" placeholder="مثلاً 500000" required>
+        </div>
+        <div class="form-group">
+            <label for="stock">موجودی</label>
+            <input type="number" id="stock" name="stock" value="{{ product.stock if product else 0 }}" min="0">
+        </div>
+        <div class="form-group">
+            <label for="category">دسته‌بندی</label>
+            <input type="text" id="category" name="category" value="{{ product.category if product else '' }}" placeholder="دسته محصول">
+        </div>
+        <div class="form-group">
+            <label for="image">عکس محصول</label>
+            {% if product and product.image %}
+                <div class="current-image-preview" style="margin-bottom:.8rem;">
+                    <img src="{{ url_for('static', filename='images/' + product.image) }}" alt="" style="width:120px;height:120px;object-fit:cover;border-radius:var(--radius);">
+                </div>
+            {% endif %}
+            <input type="file" id="image" name="image" accept="image/*">
+        </div>
+        <div class="form-actions">
+            <button type="submit" class="btn btn-primary">{% if product %}به‌روزرسانی{% else %}افزودن محصول{% endif %}</button>
+            <a href="{{ url_for('admin_products') }}" class="btn btn-secondary">انصراف</a>
+        </div>
+    </form>
+</div>
+{% endblock %}

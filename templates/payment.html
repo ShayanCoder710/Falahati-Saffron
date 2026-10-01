@@ -1,0 +1,24 @@
+{% extends "base.html" %}
+{% block title %}پرداخت - زعفران فلاحتی{% endblock %}
+{% block content %}
+<div class="container">
+    <div class="payment-container">
+        <h1>درگاه پرداخت</h1>
+        <div class="payment-info">
+            <p>مبلغ قابل پرداخت: <strong>{{ "{:,.0f}".format(order.total_price) }} تومان</strong></p>
+            <p>شماره سفارش: #{{ order.id }}</p>
+        </div>
+        <a href="{{ payment_url }}" class="btn btn-primary btn-lg btn-block" target="_blank" rel="noopener">
+            پرداخت آنلاین
+        </a>
+        <form method="POST" action="{{ url_for('payment_verify') }}" class="mock-verify" style="margin-top:1rem;">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <input type="hidden" name="payment_ref" value="{{ order.payment_ref }}">
+            <button type="submit" class="btn btn-secondary btn-block">تأیید پرداخت (تست سندباکس)</button>
+        </form>
+        <p class="payment-note">
+            {% if mock %}حالت تستی (mock) فعال است — درگاه واقعی متصل نیست؛ با دکمه بالایی پرداخت را شبیه‌سازی کنید.{% else %}این یک صفحه نمونه برای تست است (Sandbox){% endif %}
+        </p>
+    </div>
+</div>
+{% endblock %}

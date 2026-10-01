@@ -1,0 +1,45 @@
+{% extends "base.html" %}
+{% block title %}مدیریت محصولات - زعفران فلاحتی{% endblock %}
+{% block content %}
+<div class="container">
+    <div class="page-header">
+        <h1 class="page-title">مدیریت محصولات</h1>
+        <a href="{{ url_for('admin_product_add') }}" class="btn btn-primary">افزودن محصول جدید</a>
+    </div>
+    {% if products %}
+    <table class="data-table">
+        <thead><tr>
+            <th>کد</th><th>نام محصول</th><th>عکس</th><th>قیمت</th><th>موجودی</th><th>دسته‌بندی</th><th>عملیات</th>
+        </tr></thead>
+        <tbody>
+        {% for p in products %}
+        <tr>
+            <td>{{ p.code or '-' }}</td>
+            <td>{{ p.name }}</td>
+            <td>
+                {% if p.image %}
+                    <img src="{{ url_for('static', filename='images/' + p.image) }}" alt="" class="thumb">
+                {% else %}
+                    <span class="no-image">-</span>
+                {% endif %}
+            </td>
+            <td>{{ "{:,.0f}".format(p.price) }} تومان</td>
+            <td>{{ p.stock }}</td>
+            <td>{{ p.category or '-' }}</td>
+            <td class="actions">
+                <a href="{{ url_for('admin_product_edit', pid=p.id) }}" class="btn btn-sm btn-secondary">ویرایش</a>
+                <form method="POST" action="{{ url_for('admin_product_delete', pid=p.id) }}"
+                      class="inline-form" onsubmit="return confirm('آیا مطمئن هستید؟');">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <button type="submit" class="btn btn-sm btn-danger">حذف</button>
+                </form>
+            </td>
+        </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+        <p class="no-products">محصولی وجود ندارد</p>
+    {% endif %}
+</div>
+{% endblock %}
