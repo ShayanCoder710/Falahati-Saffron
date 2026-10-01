@@ -9,44 +9,68 @@
     </div>
 </section>
 
+<div class="container">
+    <div class="features-strip">
+        <div class="feature-card">
+            <div class="feature-icon">✓</div>
+            <h4>زعفران درجه یک</h4>
+            <p>برگ‌های سرخ فاخر</p>
+        </div>
+        <div class="feature-card">
+            <div class="feature-icon">🚚</div>
+            <h4>ارسال سریع</h4>
+            <p>به سراسر کشور</p>
+        </div>
+        <div class="feature-card">
+            <div class="feature-icon">🛡</div>
+            <h4>ضمانت اصالت</h4>
+            <p>تضمین کیفیت بازگشت</p>
+        </div>
+    </div>
+</div>
+
 <section class="products-section" id="products" style="padding:3rem 0;">
     <div class="container">
         <h2 class="section-title">محصولات ما</h2>
-        {% if products %}
-        <div class="products-grid">
-            {% for p in products %}
-            <div class="product-card">
-                {% if p.image %}
-                    <img src="{{ url_for('static', filename='images/' + p.image) }}" alt="{{ p.name }}" class="product-image">
-                {% else %}
-                    <div class="product-image-placeholder"><img src="{{ url_for('static', filename='images/icon.png') }}" alt="" style="width:60px;height:60px;object-fit:contain;"></div>
-                {% endif %}
-                <div class="product-info">
-                    <h3>{{ p.name }}</h3>
-                    <p class="product-price">{{ "{:,.0f}".format(p.price) }} تومان</p>
-                    {% if p.stock > 0 %}
-                        <span class="stock-in">موجود در انبار ({{ p.stock }} عدد)</span>
-                    {% else %}
-                        <span class="stock-out">ناموجود</span>
-                    {% endif %}
-                    <div class="product-actions">
-                        <a href="{{ url_for('product_detail', pid=p.id) }}" class="btn btn-secondary btn-sm">جزئیات</a>
-                        {% if p.stock > 0 %}
-                        <form method="POST" action="{{ url_for('cart') }}" class="add-to-cart">
-                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                            <input type="hidden" name="product_id" value="{{ p.id }}">
-                            <input type="hidden" name="quantity" value="1">
-                            <button type="submit" class="btn btn-primary btn-sm">افزودن به سبد</button>
-                        </form>
-                        {% endif %}
-                    </div>
-                </div>
-            </div>
-            {% endfor %}
+        <div class="product-search-box">
+            <input type="search" id="productSearch" value="{{ q }}" placeholder="جستجوی محصول (نام، کد، دسته یا توضیح)..." aria-label="جستجوی محصولات" class="product-search-input">
         </div>
-        {% else %}
-            <p class="no-products">محصولی وجود ندارد</p>
-        {% endif %}
+        <div id="productSearchResults">
+        {% include "_product_grid.html" %}
+        </div>
     </div>
 </section>
+{% endblock %}
+{% block extra_js %}
+<script>
+(function(){
+    var input = document.getElementById('productSearch');
+    var results = document.getElementById('productSearchResults');
+    if (!input || !results) return;
+    var timer = null, seq = 0;
+    function loadResults(q){
+        var mySeq = ++seq;
+        var url = q ? ('/api/products?q=' + encodeURIComponent(q)) : '/api/products';
+        fetch(url, { headers: { 'X-Requested-With': 'XMLHttpRequest' } })
+        .then(function(r){
+            if (!r.ok) throw new Error('http');
+            return r.json();
+        })
+        .then(function(data){
+            if (mySeq !== seq) return;
+            results.innerHTML = data.html;
+        })
+        .catch(function(){
+            if (mySeq !== seq) return;
+            location.href = q ? ('/?q=' + encodeURIComponent(q)) : '/';
+        });
+    }
+    input.addEventListener('input', function(){
+        clearTimeout(timer);
+        var q = input.value.trim();
+        var delay = q.length < 2 ? 120 : 150;
+        timer = setTimeout(function(){ loadResults(q); }, delay);
+    });
+})();
+</script>
 {% endblock %}

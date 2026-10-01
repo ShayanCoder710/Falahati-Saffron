@@ -1,13 +1,4 @@
-import hashlib
-import os
-
-BASE_DIR = os.path.abspath(os.path.dirname(__file__))
-
-SECRET_KEY = os.environ.get('SECRET_KEY', 'safferon-felahati-secret-key-2024')
+SECRET_KEY = 'secret_key_0294893082804804829849482084294729647929437284784727AAASASSASASPOOWESDZCXCCCXCZ'
 SQLALCHEMY_DATABASE_URI = 'mysql+mysqlconnector://root:1@localhost:3306/felahati_safferon'
-SQLALCHEMY_TRACK_MODIFICATIONS = False
 ADMIN_USERNAME = 'admin'
-ADMIN_PASSWORD = 'Safferon@2024'
-ZARINPAL_MERCHANT_ID = os.environ.get('ZARINPAL_MERCHANT_ID', 'test_merchant_id')
-ZARINPAL_SANDBOX_KEY = os.environ.get('ZARINPAL_SANDBOX_KEY', '')
-ZARINPAL_SANDBOX_API = 'https://sandbox.zarinpal.com/pg/rest/v4/payment'
+ADMIN_PASSWORD = '123'

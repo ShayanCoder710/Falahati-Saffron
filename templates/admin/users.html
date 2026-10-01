@@ -1,23 +1,32 @@
-{% extends "base.html" %}
+{% extends "admin/base_admin.html" %}
 {% block title %}مدیریت کاربران - زعفران فلاحتی{% endblock %}
 {% block content %}
 <div class="container">
     <h1 class="page-title">مدیریت کاربران</h1>
     {% if users %}
+    <div class="table-wrap">
     <table class="data-table">
-        <thead><tr><th>کد</th><th>نام کاربری</th><th>نام</th><th>تلفن</th><th>تاریخ عضویت</th></tr></thead>
+        <thead><tr><th>کد</th><th>نام کاربری</th><th>نام</th><th>تلفن</th><th>تاریخ عضویت</th><th>عملیات</th></tr></thead>
         <tbody>
         {% for u in users %}
             <tr>
-                <td>{{ u.id }}</td>
+                <td>#{{ u.id | fa_num }}</td>
                 <td>{{ u.username }}</td>
                 <td>{{ u.full_name or '-' }}</td>
-                <td>{{ u.phone or '-' }}</td>
-                <td>{{ u.created_at.strftime('%Y/%m/%d') }}</td>
+                <td dir="ltr">{{ u.phone | fa_digits if u.phone else '-' }}</td>
+                <td>{{ u.created_at | fa_date }}</td>
+                <td>
+                    <form method="POST" action="{{ url_for('admin_user_delete', uid=u.id) }}"
+                          class="inline-form" onsubmit="return confirm('با حذف این کاربر، اطلاعات او از بین می‌رود. مطمئن هستید؟');">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        <button type="submit" class="btn btn-sm btn-danger">حذف</button>
+                    </form>
+                </td>
             </tr>
         {% endfor %}
         </tbody>
     </table>
+    </div>
     {% else %}
         <p>کاربری ثبت‌نام نکرده است</p>
     {% endif %}

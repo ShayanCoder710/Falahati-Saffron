@@ -1,4 +1,4 @@
-{% extends "base.html" %}
+{% extends "admin/base_admin.html" %}
 {% block title %}مدیریت محصولات - زعفران فلاحتی{% endblock %}
 {% block content %}
 <div class="container">
@@ -7,6 +7,7 @@
         <a href="{{ url_for('admin_product_add') }}" class="btn btn-primary">افزودن محصول جدید</a>
     </div>
     {% if products %}
+    <div class="table-wrap">
     <table class="data-table">
         <thead><tr>
             <th>کد</th><th>نام محصول</th><th>عکس</th><th>قیمت</th><th>موجودی</th><th>دسته‌بندی</th><th>عملیات</th>
@@ -23,8 +24,8 @@
                     <span class="no-image">-</span>
                 {% endif %}
             </td>
-            <td>{{ "{:,.0f}".format(p.price) }} تومان</td>
-            <td>{{ p.stock }}</td>
+            <td>{{ p.price | fa_num }} تومان</td>
+            <td>{{ p.stock | fa_num }}</td>
             <td>{{ p.category or '-' }}</td>
             <td class="actions">
                 <a href="{{ url_for('admin_product_edit', pid=p.id) }}" class="btn btn-sm btn-secondary">ویرایش</a>
@@ -38,6 +39,7 @@
         {% endfor %}
         </tbody>
     </table>
+    </div>
     {% else %}
         <p class="no-products">محصولی وجود ندارد</p>
     {% endif %}

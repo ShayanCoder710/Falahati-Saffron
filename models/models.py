@@ -1,33 +1,9 @@
 import hashlib
-import os
-from extensions import db
-from datetime import datetime
+import secrets
 import uuid
+from datetime import datetime
 
-
-def generate_token():
-    return str(uuid.uuid4())
-
-
-class Admin(db.Model):
-    __tablename__ = 'admin'
-
-    id = db.Column(db.Integer, primary_key=True)
-    username = db.Column(db.String(80), unique=True, nullable=False)
-    password_hash = db.Column(db.String(256), nullable=False)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
-
-    def set_password(self, password):
-        salt = os.urandom(32).hex()
-        self.password_hash = hashlib.sha256(
-            (password + salt).encode()
-        ).hexdigest() + ':' + salt
-
-    def check_password(self, password):
-        if ':' not in self.password_hash:
-            return False
-        stored_hash, salt = self.password_hash.split(':')
-        return hashlib.sha256((password + salt).encode()).hexdigest() == stored_hash
+from extensions import db
 
 
 class Product(db.Model):
@@ -96,16 +72,17 @@ class User(db.Model):
     orders = db.relationship('Order', backref='user', lazy='select')
 
     def set_password(self, password):
-        salt = os.urandom(32).hex()
-        self.password_hash = hashlib.sha256(
-            (password + salt).encode()
-        ).hexdigest() + ':' + salt
+        salt = secrets.token_hex(32)
+        self.password_hash = f'{hashlib.sha256((password + salt).encode()).hexdigest()}:{salt}'
 
     def check_password(self, password):
         if ':' not in self.password_hash:
             return False
         stored_hash, salt = self.password_hash.split(':')
         return hashlib.sha256((password + salt).encode()).hexdigest() == stored_hash
+
+    def __repr__(self):
+        return f'<User {self.username}>'
 
 
 class AboutContent(db.Model):
@@ -122,11 +99,48 @@ class AboutContent(db.Model):
 
     @classmethod
     def set_content(cls, content):
+        instance = cls.query.first() or cls(content=content)
+        instance.content = content
+        db.session.add(instance)
+        db.session.commit()
+
+
+class FooterContent(db.Model):
+    __tablename__ = 'footer_content'
+
+    FIELDS = {
+        'brand_name': 'زعفران فلاحتی',
+        'tagline': 'زعفران اصل فلاحتی با کیفیت برتر، از مزارع تا خانه شما — ارسال مطمئن به سراسر کشور.',
+        'phone': '09123456789',
+        'email': 'info@safferon-felahati.ir',
+        'hours': 'شنبه تا پنجشنبه، ۹ صبح تا ۶ عصر',
+        'copyright': 'تمامی حقوق محفوظ است.',
+    }
+
+    id = db.Column(db.Integer, primary_key=True)
+    brand_name = db.Column(db.String(200), nullable=True)
+    tagline = db.Column(db.Text, nullable=True)
+    phone = db.Column(db.String(50), nullable=True)
+    email = db.Column(db.String(200), nullable=True)
+    hours = db.Column(db.String(200), nullable=True)
+    copyright = db.Column(db.String(300), nullable=True)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    @classmethod
+    def get_values(cls):
         instance = cls.query.first()
-        if instance:
-            instance.content = content
-        else:
+        values = {}
+        for field, fallback in cls.FIELDS.items():
+            stored = getattr(instance, field, None) if instance else None
+            values[field] = stored.strip() if stored and stored.strip() else fallback
+        return values
+
+    @classmethod
+    def save_values(cls, **values):
+        instance = cls.query.first()
+        if instance is None:
             instance = cls()
-            instance.content = content
             db.session.add(instance)
+        for field in cls.FIELDS:
+            setattr(instance, field, (values.get(field) or '').strip() or None)
         db.session.commit()

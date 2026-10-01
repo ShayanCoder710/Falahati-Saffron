@@ -1,36 +1,26 @@
-{% extends "base.html" %}
+{% extends "admin/base_admin.html" %}
 {% block title %}مدیریت سفارشات - زعفران فلاحتی{% endblock %}
 {% block content %}
 <div class="container">
     <h1 class="page-title">مدیریت سفارشات</h1>
     {% if orders %}
-    <div style="overflow-x:auto;">
+    <div class="table-wrap">
         <table class="data-table">
             <thead><tr>
-                <th>شماره</th><th>مشتری</th><th>تلفن</th><th>آدرس</th>
+                <th>شماره</th><th>مشتری</th><th>تلفن</th>
                 <th>مبلغ</th><th>وضعیت</th><th>تاریخ</th><th>عملیات</th>
             </tr></thead>
             <tbody>
             {% for o in orders %}
             <tr>
-                <td>{{ o.id }}</td>
+                <td>#{{ o.id }}</td>
                 <td>{{ o.customer_name }}</td>
-                <td>{{ o.customer_phone }}</td>
-                <td>{{ o.customer_address[:25] }}...</td>
-                <td>{{ "{:,.0f}".format(o.total_price) }} تومان</td>
-                <td><span class="status-badge status-{{ o.status }}">{{ o.status }}</span></td>
-                <td>{{ o.created_at.strftime('%Y/%m/%d %H:%M') }}</td>
-                <td>
-                    <form method="POST" action="{{ url_for('admin_order_status', oid=o.id) }}" class="inline-form">
-                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                        <select name="status" onchange="this.form.submit()">
-                            <option value="pending"   {% if o.status=='pending'   %}selected{% endif %}>در انتظار</option>
-                            <option value="paid"      {% if o.status=='paid'      %}selected{% endif %}>پرداخت شده</option>
-                            <option value="shipped"   {% if o.status=='shipped'   %}selected{% endif %}>ارسال شده</option>
-                            <option value="completed" {% if o.status=='completed' %}selected{% endif %}>تکمیل شده</option>
-                            <option value="cancelled" {% if o.status=='cancelled' %}selected{% endif %}>لغو شده</option>
-                        </select>
-                    </form>
+                <td dir="ltr">{{ o.customer_phone }}</td>
+                <td>{{ o.total_price | fa_num }} تومان</td>
+                <td><span class="status-badge status-{{ o.status }}">{{ status_labels.get(o.status, o.status) }}</span></td>
+                <td>{{ o.created_at | fa_date }}</td>
+                <td class="actions">
+                    <a href="{{ url_for('admin_order_detail', oid=o.id) }}" class="btn btn-sm btn-secondary">جزئیات</a>
                 </td>
             </tr>
             {% endfor %}
@@ -38,7 +28,7 @@
         </table>
     </div>
     {% else %}
-        <p>سفارشی ثبت نشده است</p>
+        <p class="no-products">سفارشی ثبت نشده است</p>
     {% endif %}
 </div>
 {% endblock %}

@@ -1,0 +1,52 @@
+{% if q %}
+<p class="search-meta">نتیجه جستجو برای «{{ q }}» — <strong>{{ products | length | fa_num }}</strong> محصول</p>
+{% endif %}
+{% if products %}
+<div class="products-grid">
+    {% for p in products %}
+    <div class="product-card">
+        <div class="product-media">
+            {% if p.image %}
+                <img src="{{ url_for('static', filename='images/' + p.image) }}" alt="{{ p.name }}" class="product-image">
+            {% else %}
+                <div class="product-image-placeholder"><img src="{{ url_for('static', filename='images/icon.png') }}" alt=""></div>
+            {% endif %}
+            <div class="product-media-shade"></div>
+            {% if p.stock > 0 %}
+                <span class="product-badge stock-in">موجود · {{ p.stock | fa_num }}</span>
+            {% else %}
+                <span class="product-badge stock-out">ناموجود</span>
+            {% endif %}
+        </div>
+        <div class="product-info">
+            <div class="product-top">
+                <h3>{{ p.name }}</h3>
+                {% if p.category %}<span class="product-cat">{{ p.category }}</span>{% endif %}
+            </div>
+            {% if p.description %}
+                <p class="product-desc">{{ p.description | truncate(54) }}</p>
+            {% endif %}
+            <div class="product-price-row">
+                <span class="product-price">{{ p.price | fa_num }}</span>
+                <span class="product-price-unit">تومان</span>
+            </div>
+            <div class="product-actions">
+                {% if p.stock > 0 %}
+                <form method="POST" action="{{ url_for('cart') }}" class="add-to-cart">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <input type="hidden" name="product_id" value="{{ p.id }}">
+                    <input type="hidden" name="quantity" value="1">
+                    <button type="submit" class="btn btn-primary">افزودن به سبد</button>
+                </form>
+                {% else %}
+                <button type="button" class="btn btn-primary" disabled>ناموجود</button>
+                {% endif %}
+                <a href="{{ url_for('product_detail', pid=p.id) }}" class="btn btn-ghost">جزئیات</a>
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+{% else %}
+<p class="no-products">{% if q %}موردی مطابق با «{{ q }}» یافت نشد{% else %}محصولی وجود ندارد{% endif %}</p>
+{% endif %}

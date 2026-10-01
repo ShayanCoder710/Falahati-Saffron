@@ -1,4 +1,4 @@
-{% extends "base.html" %}
+{% extends "admin/base_admin.html" %}
 {% block title %}پنل مدیریت - زعفران فلاحتی{% endblock %}
 {% block content %}
 <div class="container">
@@ -32,6 +32,7 @@
         <a href="{{ url_for('admin_orders') }}" class="btn btn-secondary">مدیریت سفارشات</a>
         <a href="{{ url_for('admin_users') }}" class="btn btn-secondary">مدیریت کاربران</a>
         <a href="{{ url_for('admin_about') }}" class="btn btn-secondary">درباره ما</a>
+        <a href="{{ url_for('admin_footer') }}" class="btn btn-secondary">فوتر سایت</a>
     </div>
 
     <div class="dashboard-section">
@@ -82,9 +83,9 @@
                     <td>{{ o.id }}</td>
                     <td>{{ o.customer_name }}</td>
                     <td>{{ o.customer_phone }}</td>
-                    <td>{{ "{:,.0f}".format(o.total_price) }} تومان</td>
-                    <td><span class="status-badge status-{{ o.status }}">{{ o.status }}</span></td>
-                    <td>{{ o.created_at.strftime('%Y/%m/%d %H:%M') }}</td>
+                    <td>{{ o.total_price | fa_num }} تومان</td>
+                    <td><span class="status-badge status-{{ o.status }}">{{ status_labels.get(o.status, o.status) }}</span></td>
+                    <td>{{ o.created_at | fa_date('%Y/%m/%d %H:%M') }}</td>
                 </tr>
                 {% endfor %}
                 </tbody>
@@ -102,7 +103,7 @@
             <thead><tr><th>محصول</th><th>موجودی</th></tr></thead>
             <tbody>
             {% for p in low_stock_products %}
-                <tr><td>{{ p.name }}</td><td>{{ p.stock }}</td></tr>
+                <tr><td>{{ p.name }}</td><td>{{ p.stock | fa_num }}</td></tr>
             {% endfor %}
             </tbody>
         </table>

@@ -2,8 +2,12 @@
 {% block title %}ورود - زعفران فلاحتی{% endblock %}
 {% block content %}
 <div class="container">
-    <div class="login-container">
-        <h1>ورود به حساب کاربری</h1>
+    <div class="auth-wrap">
+        <div class="auth-header">
+            <img src="{{ url_for('static', filename='images/icon.png') }}" alt="">
+            <h1>ورود به حساب کاربری</h1>
+            <p>برای ادامه وارد حساب خود شوید</p>
+        </div>
         <form method="POST" class="login-form">
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <div class="form-group">
@@ -14,11 +18,11 @@
                 <label for="password">رمز عبور</label>
                 <input type="password" id="password" name="password" required placeholder="رمز عبور خود را وارد کنید">
             </div>
-            <button type="submit" class="btn btn-primary btn-block">ورود</button>
+            <button type="submit" class="btn btn-primary btn-block" style="margin-top:.4rem;">ورود</button>
         </form>
-        <p style="text-align:center;margin-top:1rem;">
-            حساب ندارید؟ <a href="{{ url_for('user_register') }}" style="color:var(--red);">ثبت‌نام کنید</a>
-        </p>
+        <div class="auth-switch">
+            حساب ندارید؟ <a href="{{ url_for('user_register') }}">ثبت‌نام کنید</a>
+        </div>
     </div>
 </div>
 {% endblock %}

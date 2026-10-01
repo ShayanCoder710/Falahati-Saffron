@@ -1,49 +1,59 @@
 {% extends "base.html" %}
-{% block title %}پروفایل - زعفران فلاحتی{% endblock %}
+{% block title %}حساب کاربری - زعفران فلاحتی{% endblock %}
 {% block content %}
 <div class="container">
-    <h1 class="page-title">پروفایل من</h1>
-    <div class="form-container">
-        <h2>ویرایش اطلاعات</h2>
-        <form method="POST" action="{{ url_for('profile') }}">
-            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-            <div class="form-group">
-                <label for="full_name">نام و نام خانوادگی</label>
-                <input type="text" id="full_name" name="full_name" value="{{ user.full_name or '' }}" placeholder="مثال: علی احمدی">
+    <div class="profile-wrap">
+        <div class="profile-hero">
+            <div class="profile-avatar"><span>{{ user.username[:1] | upper }}</span></div>
+            <div class="profile-hero-info">
+                <div class="profile-name-row">
+                    <h2>{{ user.full_name or user.username }}</h2>
+                    <span class="profile-tag">کاربر</span>
+                </div>
+                <p class="profile-sub">@{{ user.username }} · عضو از <span dir="ltr">{{ user.created_at | fa_date }}</span></p>
             </div>
-            <div class="form-group">
-                <label for="phone">شماره تماس</label>
-                <input type="tel" id="phone" name="phone" value="{{ user.phone or '' }}" placeholder="09xxxxxxxxx">
+            <div class="profile-hero-stats">
+                <div class="hero-stat"><span>{{ active_orders | fa_num }}</span><label>سفارش فعال</label></div>
+                <div class="hero-stat"><span>{{ pending_orders | fa_num }}</span><label>در انتظار پرداخت</label></div>
             </div>
-            <div class="form-group">
-                <label for="address">آدرس</label>
-                <textarea id="address" name="address" rows="3" placeholder="آدرس پستی خود">{{ user.address or '' }}</textarea>
-            </div>
-            <div class="form-actions">
-                <button type="submit" class="btn btn-primary">ذخیره تغییرات</button>
-            </div>
-        </form>
-    </div>
+        </div>
 
-    <div class="form-container" style="margin-top:2rem;">
-        <h2>سفارشات من</h2>
-        {% if orders %}
-        <table class="data-table">
-            <thead><tr><th>شماره</th><th>مبلغ</th><th>وضعیت</th><th>تاریخ</th></tr></thead>
-            <tbody>
-            {% for o in orders %}
-                <tr>
-                    <td>#{{ o.id }}</td>
-                    <td>{{ "{:,.0f}".format(o.total_price) }} تومان</td>
-                    <td><span class="status-badge status-{{ o.status }}">{{ o.status }}</span></td>
-                    <td>{{ o.created_at.strftime('%Y/%m/%d') }}</td>
-                </tr>
-            {% endfor %}
-            </tbody>
-        </table>
-        {% else %}
-            <p>سفارشی ثبت نکرده‌اید</p>
-        {% endif %}
+        <div class="profile-card">
+            <div class="profile-card-head">
+                <h3>ویرایش اطلاعات حساب</h3>
+                <p>نام کاربری، اطلاعات تماس و آدرس ارسال خود را به‌روز کنید</p>
+            </div>
+            <form method="POST" action="{{ url_for('profile') }}">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="username">نام کاربری</label>
+                        <input type="text" id="username" name="username" value="{{ user.username }}" required minlength="3" placeholder="حداقل ۳ کاراکتر" autocomplete="off">
+                        <div class="username-hint" data-ignore="{{ user.id }}">
+                            <span class="username-hint-dot"></span><span class="username-hint-text"></span>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label for="full_name">نام و نام خانوادگی</label>
+                        <input type="text" id="full_name" name="full_name" value="{{ user.full_name or '' }}" placeholder="مثال: علی احمدی">
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="phone">شماره تماس</label>
+                        <input type="tel" id="phone" name="phone" value="{{ user.phone or '' }}" placeholder="09123456789" dir="ltr">
+                    </div>
+                    <div class="form-group">
+                        <label for="address">آدرس پستی</label>
+                        <input type="text" id="address" name="address" value="{{ user.address or '' }}" placeholder="آدرس کامل برای ارسال">
+                    </div>
+                </div>
+                <div class="profile-form-footer">
+                    <button type="submit" class="btn btn-primary">ذخیره تغییرات</button>
+                    <span class="profile-form-hint">تغییرات پس از ذخیره، در اطلاعات شما اعمال می‌شود</span>
+                </div>
+            </form>
+        </div>
     </div>
 </div>
 {% endblock %}

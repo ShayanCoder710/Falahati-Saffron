@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}پنل مدیریت - زعفران فلاحتی{% endblock %}</title>
+    <link rel="icon" type="image/png" href="{{ url_for('static', filename='images/icon.png') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    {% block extra_css %}{% endblock %}
+</head>
+<body>
+    <header class="header admin-header">
+        <nav class="navbar admin-nav">
+            <div class="container">
+                <div class="nav-brand">
+                    <a href="{{ url_for('admin_dashboard') }}">
+                        <img src="{{ url_for('static', filename='images/icon.png') }}" alt="">
+                        <span>پنل ادمین</span>
+                    </a>
+                </div>
+                <ul class="nav-menu">
+                    <li><a href="{{ url_for('admin_dashboard') }}">داشبورد</a></li>
+                    <li><a href="{{ url_for('admin_products') }}">محصولات</a></li>
+                    <li><a href="{{ url_for('admin_orders') }}">سفارشات</a></li>
+                    <li><a href="{{ url_for('admin_users') }}">کاربران</a></li>
+                    <li><a href="{{ url_for('admin_about') }}">درباره ما</a></li>
+                    <li><a href="{{ url_for('admin_footer') }}">فوتر</a></li>
+                </ul>
+                <div class="admin-nav-actions">
+                    <a href="{{ url_for('home') }}" class="btn btn-ghost btn-sm" title="بازگشت به سایت">مشاهده سایت</a>
+                    <a href="{{ url_for('admin_logout') }}" class="btn btn-danger btn-sm" title="خروج">خروج</a>
+                </div>
+            </div>
+        </nav>
+    </header>
+
+    <main class="main">
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+            <div class="container">
+            {% for cat, msg in messages %}
+                <div class="alert alert-{{ cat }}">
+                    {{ msg }}
+                    <button class="alert-close" onclick="this.parentElement.remove()">×</button>
+                </div>
+            {% endfor %}
+            </div>
+            {% endif %}
+        {% endwith %}
+        {% block content %}{% endblock %}
+    </main>
+
+    <footer class="footer">
+        <div class="container">
+            <div class="footer-grid">
+                <div class="footer-col footer-brand-col">
+                    <div class="footer-logo-row">
+                        <span class="footer-logo"><img src="{{ url_for('static', filename='images/icon.png') }}" alt=""></span>
+                        <span class="footer-name">{{ footer.brand_name }}</span>
+                    </div>
+                    <p class="footer-tagline">پنل مدیریت فروشگاه</p>
+                </div>
+                <div class="footer-col footer-contact-col">
+                    <h4 class="footer-col-title">پشتیبانی</h4>
+                    <a class="footer-contact-item" href="tel:{{ footer.phone }}">📞 {{ footer.phone | fa_digits }}</a>
+                    <a class="footer-contact-item" href="mailto:{{ footer.email }}">✉️ {{ footer.email }}</a>
+                </div>
+            </div>
+            <div class="footer-bottom">
+                <span>© ۲۰۲۶ {{ footer.brand_name }} — پنل مدیریت</span>
+            </div>
+        </div>
+    </footer>
+
+    <script>
+        (function(){
+            var menu = document.querySelector('.admin-nav .nav-menu');
+            if (!menu) return;
+            var path = window.location.pathname;
+            menu.querySelectorAll('a').forEach(function(a){
+                var href = a.getAttribute('href');
+                if (href === path || (href.length > 7 && path.indexOf(href) === 0)) {
+                    a.parentElement.classList.add('admin-active');
+                    a.classList.add('active-admin');
+                }
+            });
+        })();
+    </script>
+    {% block extra_js %}{% endblock %}
+</body>
+</html>

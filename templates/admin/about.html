@@ -1,18 +1,30 @@
-{% extends "base.html" %}
+{% extends "admin/base_admin.html" %}
 {% block title %}مدیریت درباره ما - زعفران فلاحتی{% endblock %}
 {% block content %}
 <div class="container">
-    <h1 class="page-title">مدیریت صفحه درباره ما</h1>
-    <form method="POST" class="form-container">
-        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-        <div class="form-group">
-            <label for="content">متن درباره ما</label>
-            <textarea id="content" name="content" rows="10" placeholder="متن صفحه درباره ما را بنویسید...">{{ content }}</textarea>
+    <div class="about-admin-wrap">
+        <div class="about-admin-hero">
+            <div class="about-admin-hero-icon"><img src="{{ url_for('static', filename='images/icon.png') }}" alt=""></div>
+            <h1>مدیریت صفحه درباره ما</h1>
+            <p>متن نمایش داده‌شده در صفحه درباره ما را ویرایش کنید</p>
         </div>
-        <div class="form-actions">
-            <button type="submit" class="btn btn-primary">ذخیره</button>
-            <a href="{{ url_for('admin_dashboard') }}" class="btn btn-secondary">انصراف</a>
+        <div class="about-admin-card">
+            <div class="about-admin-card-head">
+                <h3>ویرایش محتوا</h3>
+                <p>تغییرات پس از ذخیره، در صفحه درباره ما اعمال می‌شود</p>
+            </div>
+            <form method="POST">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <div class="form-group">
+                    <label for="content">متن درباره ما</label>
+                    <textarea id="content" name="content" rows="10" placeholder="متن صفحه درباره ما را بنویسید...">{{ content }}</textarea>
+                </div>
+                <div class="about-admin-card-foot">
+                    <button type="submit" class="btn btn-primary">ذخیره تغییرات</button>
+                    <a href="{{ url_for('admin_dashboard') }}" class="btn btn-ghost">بازگشت به داشبورد</a>
+                </div>
+            </form>
         </div>
-    </form>
+    </div>
 </div>
 {% endblock %}

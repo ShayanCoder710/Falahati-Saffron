@@ -1,19 +1,42 @@
 {% extends "base.html" %}
-{% block title %}تایید سفارش - زعفران فلاحتی{% endblock %}
+{% block title %}جزئیات سفارش #{{ order.id }} - زعفران فلاحتی{% endblock %}
 {% block content %}
 <div class="container">
-    <div class="order-success">
-        <div class="success-icon">✓</div>
-        <h1>سفارش شما ثبت شد</h1>
-        <p>شماره سفارش: #{{ order.id }}</p>
+    <div class="order-success{% if failed %} order-success--failed{% endif %}">
+        <div class="success-icon{% if failed %} is-failed{% endif %}">{{ '✓' if not failed else '✗' }}</div>
+        <h1>
+            {% if failed %}پرداخت ناموفق — سفارش لغو شد{% elif pending %}مکمل پرداخت: سفارش #{{ order.id }}{% else %}سفارش #{{ order.id }} با موفقیت ثبت شد{% endif %}
+        </h1>
+        <p class="order-success-date">{{ order.created_at | fa_date('%Y/%m/%d %H:%M') }}</p>
+        <span class="status-badge status-{{ order.status }}">{{ status_labels.get(order.status, order.status) }}</span>
         <div class="order-details">
-            <h2>جزئیات سفارش</h2>
+            <h2>اقلام سفارش</h2>
+            {% for it in items %}
+            <div class="order-line">
+                <span>{{ it.name }} × {{ it.quantity | fa_num }}</span>
+                <span>{{ (it.price * it.quantity) | fa_num }} تومان</span>
+            </div>
+            {% endfor %}
+            <div class="order-line order-line-total">
+                <span>جمع کل</span>
+                <span>{{ order.total_price | fa_num }} تومان</span>
+            </div>
+        </div>
+        <div class="order-details">
+            <h2>اطلاعات ارسال</h2>
             <p><strong>نام:</strong> {{ order.customer_name }}</p>
             <p><strong>تلفن:</strong> {{ order.customer_phone }}</p>
             <p><strong>آدرس:</strong> {{ order.customer_address }}</p>
-            <p><strong>مبلغ:</strong> {{ "{:,.0f}".format(order.total_price) }} تومان</p>
         </div>
-        <a href="{{ url_for('home') }}" class="btn btn-primary">بازگشت به صفحه اصلی</a>
+        {% if failed %}
+        <p class="order-success-tip">اگر مبلغ از حساب شما کسر شده، با پشتیبانی در تماس باشید تا رسید پرداخت ارسال شود.</p>
+        {% endif %}
+        <div class="order-success-actions">
+            {% if pending %}
+            <a href="{{ url_for('order_pay', oid=order.id) }}" class="btn btn-primary">پرداخت سفارش</a>
+            {% endif %}
+            <a href="{{ url_for('profile') }}" class="btn btn-secondary">بازگشت به حساب کاربری</a>
+        </div>
     </div>
 </div>
 {% endblock %}

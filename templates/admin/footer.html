@@ -1,0 +1,40 @@
+{% extends "admin/base_admin.html" %}
+{% block title %}ویرایش فوتر - زعفران فلاحتی{% endblock %}
+{% block content %}
+<div class="container">
+    <h1 class="page-title">ویرایش فوتر سایت</h1>
+    <form method="POST" class="form-container">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <div class="form-group">
+            <label for="brand_name">نام برند</label>
+            <input type="text" id="brand_name" name="brand_name" value="{{ brand_name }}" placeholder="برای مثال زعفران فلاحتی">
+        </div>
+        <div class="form-group">
+            <label for="tagline">توضیح کوتاه (تگ‌لاین)</label>
+            <textarea id="tagline" name="tagline" rows="2" placeholder="یک جمله کوتاه درباره فروشگاه">{{ tagline }}</textarea>
+        </div>
+        <div class="form-row">
+            <div class="form-group">
+                <label for="phone">شماره تماس</label>
+                <input type="text" id="phone" name="phone" value="{{ phone }}" dir="ltr" placeholder="09123456789">
+            </div>
+            <div class="form-group">
+                <label for="email">ایمیل</label>
+                <input type="email" id="email" name="email" value="{{ email }}" dir="ltr" placeholder="info@example.com">
+            </div>
+        </div>
+        <div class="form-group">
+            <label for="hours">ساعت پاسخگویی</label>
+            <input type="text" id="hours" name="hours" value="{{ hours }}" placeholder="برای مثال شنبه تا پنجشنبه، ۹ صبح تا ۶ عصر">
+        </div>
+        <div class="form-group">
+            <label for="copyright">متن کپی‌رایت</label>
+            <input type="text" id="copyright" name="copyright" value="{{ copyright }}" placeholder="برای مثال تمامی حقوق محفوظ است.">
+        </div>
+        <div class="form-actions">
+            <button type="submit" class="btn btn-primary">ذخیره</button>
+            <a href="{{ url_for('admin_dashboard') }}" class="btn btn-secondary">انصراف</a>
+        </div>
+    </form>
+</div>
+{% endblock %}

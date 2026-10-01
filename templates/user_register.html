@@ -2,39 +2,50 @@
 {% block title %}ثبت‌نام - زعفران فلاحتی{% endblock %}
 {% block content %}
 <div class="container">
-    <div class="login-container">
-        <h1>ثبت‌نام</h1>
+    <div class="auth-wrap">
+        <div class="auth-header">
+            <img src="{{ url_for('static', filename='images/icon.png') }}" alt="">
+            <h1>ثبت‌نام</h1>
+            <p>یک حساب کاربری برای خود بسازید</p>
+        </div>
         <form method="POST" class="login-form">
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-            <div class="form-group">
-                <label for="username">نام کاربری</label>
-                <input type="text" id="username" name="username" required placeholder="نام کاربری دلخواه">
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="username">نام کاربری</label>
+                    <input type="text" id="username" name="username" required minlength="3" placeholder="نام کاربری دلخواه" autocomplete="off">
+                    <div class="username-hint" id="usernameHint" data-endpoint="/api/username-available">
+                        <span class="username-hint-dot"></span><span class="username-hint-text"></span>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label for="phone">شماره تماس</label>
+                    <input type="tel" id="phone" name="phone" placeholder="09123456789" dir="ltr">
+                </div>
             </div>
             <div class="form-group">
                 <label for="full_name">نام و نام خانوادگی</label>
                 <input type="text" id="full_name" name="full_name" placeholder="مثال: علی احمدی">
             </div>
             <div class="form-group">
-                <label for="phone">شماره تماس</label>
-                <input type="tel" id="phone" name="phone" placeholder="09xxxxxxxxx">
-            </div>
-            <div class="form-group">
                 <label for="address">آدرس</label>
-                <textarea id="address" name="address" rows="3" placeholder="آدرس پستی خود را وارد کنید"></textarea>
+                <textarea id="address" name="address" rows="2" placeholder="آدرس پستی خود را وارد کنید"></textarea>
             </div>
-            <div class="form-group">
-                <label for="password">رمز عبور</label>
-                <input type="password" id="password" name="password" required placeholder="حداقل ۶ کاراکتر">
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="password">رمز عبور</label>
+                    <input type="password" id="password" name="password" required placeholder="حداقل ۶ کاراکتر">
+                </div>
+                <div class="form-group">
+                    <label for="password_confirm">تکرار رمز</label>
+                    <input type="password" id="password_confirm" name="password_confirm" required placeholder="رمز عبور را دوباره وارد کنید">
+                </div>
             </div>
-            <div class="form-group">
-                <label for="password_confirm">تکرار رمز عبور</label>
-                <input type="password" id="password_confirm" name="password_confirm" required placeholder="رمز عبور را دوباره وارد کنید">
-            </div>
-            <button type="submit" class="btn btn-primary btn-block">ثبت‌نام</button>
+            <button type="submit" class="btn btn-primary btn-block" style="margin-top:.4rem;">ثبت‌نام</button>
         </form>
-        <p style="text-align:center;margin-top:1rem;">
-            قبلاً ثبت‌نام کرده‌اید؟ <a href="{{ url_for('user_login') }}" style="color:var(--red);">وارد شوید</a>
-        </p>
+        <div class="auth-switch">
+            قبلاً ثبت‌نام کرده‌اید؟ <a href="{{ url_for('user_login') }}">وارد شوید</a>
+        </div>
     </div>
 </div>
 {% endblock %}

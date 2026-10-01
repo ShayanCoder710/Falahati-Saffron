@@ -12,7 +12,7 @@
     <header class="header">
         <nav class="navbar">
             <div class="container">
-                <div class="nav-brand"><a href="{{ url_for('home') }}">زعفران فلاحتی</a></div>
+                <div class="nav-brand"><a href="{{ url_for('home') }}"><img src="{{ url_for('static', filename='images/icon.png') }}" alt=""> زعفران فلاحتی</a></div>
                 <button class="nav-toggle" id="navToggle" aria-label="منو">
                     <span></span><span></span><span></span>
                 </button>
@@ -47,12 +47,80 @@
         {% block content %}{% endblock %}
     </main>
 
-    <footer class="footer"><div class="container"><p>© 2024 زعفران فلاحتی - تمامی حقوق محفوظ است</p></div></footer>
+    <footer class="footer">
+        <div class="container">
+            <div class="footer-grid">
+                <div class="footer-col footer-brand-col">
+                    <div class="footer-logo-row">
+                        <span class="footer-logo"><img src="{{ url_for('static', filename='images/icon.png') }}" alt=""></span>
+                        <span class="footer-name">{{ footer.brand_name }}</span>
+                    </div>
+                    <p class="footer-tagline">{{ footer.tagline }}</p>
+                    <a href="tel:{{ footer.phone }}" class="footer-cta">تماس با ما</a>
+                </div>
+                <div class="footer-col footer-contact-col">
+                    <h4 class="footer-col-title">تماس با ما</h4>
+                    <a class="footer-contact-item" href="tel:{{ footer.phone }}">📞 {{ footer.phone | fa_digits }}</a>
+                    <a class="footer-contact-item" href="mailto:{{ footer.email }}">✉️ {{ footer.email }}</a>
+                    <span class="footer-contact-item footer-contact-static">⏰ {{ footer.hours }}</span>
+                </div>
+            </div>
+            <div class="footer-bottom">
+                <span>© ۲۰۲۶ {{ footer.brand_name }} — {{ footer.copyright }}</span>
+            </div>
+        </div>
+    </footer>
 
     <script>
+        window.CSRF_TOKEN = "{{ csrf_token() }}";
         document.getElementById('navToggle').addEventListener('click', function(){
-            document.getElementById('navMenu').classList.toggle('active');
+            var menu = document.getElementById('navMenu');
+            var open = !menu.classList.contains('active');
+            menu.classList.toggle('active', open);
+            this.classList.toggle('active', open);
         });
+        document.querySelectorAll('#navMenu a').forEach(function(link){
+            link.addEventListener('click', function(){
+                document.getElementById('navMenu').classList.remove('active');
+                document.getElementById('navToggle').classList.remove('active');
+            });
+        });
+        (function(){
+            var hints = document.querySelectorAll('.username-hint');
+            hints.forEach(function(hint){
+                var group = hint.closest('.form-group');
+                var input = group ? group.querySelector('input[name="username"]') : null;
+                if (!input) return;
+                var text = hint.querySelector('.username-hint-text');
+                var ignoreId = hint.getAttribute('data-ignore');
+                var t = null;
+                function setState(cls, msg){
+                    hint.classList.remove('is-available','is-taken','is-checking');
+                    if (cls) hint.classList.add(cls);
+                    text.textContent = msg || '';
+                }
+                function check(){
+                    var u = input.value.trim();
+                    if (u.length < 3){ setState(null, ''); return; }
+                    setState('is-checking', 'در حال بررسی...');
+                    var url = '/api/username-available?username=' + encodeURIComponent(u);
+                    if (ignoreId) url += '&ignore_id=' + encodeURIComponent(ignoreId);
+                    fetch(url, { headers: { 'X-Requested-With': 'XMLHttpRequest' } })
+                    .then(function(r){ return r.json(); })
+                    .then(function(data){
+                        if (data.available) setState('is-available', 'این نام کاربری در دسترس است');
+                        else setState('is-taken', 'این نام کاربری در دسترس نیست');
+                    })
+                    .catch(function(){ setState(null, ''); });
+                }
+                input.addEventListener('input', function(){
+                    clearTimeout(t);
+                    t = setTimeout(check, 350);
+                });
+                input.addEventListener('blur', check);
+                if (input.value.trim().length >= 3) setTimeout(check, 400);
+            });
+        })();
     </script>
     {% block extra_js %}{% endblock %}
 </body>

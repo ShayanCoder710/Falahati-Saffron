@@ -1,0 +1,61 @@
+{% extends "admin/base_admin.html" %}
+{% block title %}سفارش #{{ order.id }} - پنل مدیریت{% endblock %}
+{% block content %}
+<div class="container">
+    <div class="page-header">
+        <h1 class="page-title">جزئیات سفارش #{{ order.id }}</h1>
+        <a href="{{ url_for('admin_orders') }}" class="btn btn-secondary btn-sm">بازگشت به فهرست سفارشات</a>
+    </div>
+
+    <div class="dashboard-section">
+        <div class="order-detail-grid">
+            <div>
+                <h3>مشتری</h3>
+                <p><strong>نام:</strong> {{ order.customer_name }}</p>
+                <p><strong>تلفن:</strong> {{ order.customer_phone }}</p>
+                <p><strong>آدرس:</strong> {{ order.customer_address }}</p>
+            </div>
+            <div>
+                <h3>وضعیت و پرداخت</h3>
+                <p><strong>وضعیت:</strong> <span class="status-badge status-{{ order.status }}">{{ status_labels.get(order.status, order.status) }}</span></p>
+                <p><strong>شناسه پرداخت:</strong> <code dir="ltr">{{ order.payment_ref or '-' }}</code></p>
+                <p><strong>تاریخ ثبت:</strong> {{ order.created_at | fa_date('%Y/%m/%d %H:%M') }}</p>
+            </div>
+        </div>
+    </div>
+
+    <div class="dashboard-section">
+        <h3>اقلام سفارش</h3>
+        <table class="data-table">
+            <thead><tr><th>محصول</th><th>تعداد</th><th>قیمت واحد</th><th>جمع</th></tr></thead>
+            <tbody>
+            {% for it in items %}
+            <tr>
+                <td>{{ it.name }}</td>
+                <td>{{ it.quantity | fa_num }}</td>
+                <td>{{ it.price | fa_num }} تومان</td>
+                <td>{{ (it.price * it.quantity) | fa_num }} تومان</td>
+            </tr>
+            {% endfor %}
+            <tr class="row-total">
+                <td colspan="3">جمع کل</td>
+                <td>{{ order.total_price | fa_num }} تومان</td>
+            </tr>
+            </tbody>
+        </table>
+    </div>
+
+    <div class="dashboard-section">
+        <h3>تغییر وضعیت</h3>
+        <form method="POST" action="{{ url_for('admin_order_status', oid=order.id) }}" class="inline-form">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <select name="status">
+                {% for key, label in status_labels.items() %}
+                <option value="{{ key }}" {% if order.status == key %}selected{% endif %}>{{ label }}</option>
+                {% endfor %}
+            </select>
+            <button type="submit" class="btn btn-primary">ذخیره وضعیت</button>
+        </form>
+    </div>
+</div>
+{% endblock %}

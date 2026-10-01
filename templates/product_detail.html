@@ -7,19 +7,19 @@
             {% if product.image %}
                 <img src="{{ url_for('static', filename='images/' + product.image) }}" alt="{{ product.name }}">
             {% else %}
-                <div class="image-placeholder"><img src="{{ url_for('static', filename='images/icon.png') }}" alt="" style="width:80px;height:80px;object-fit:contain;"></div>
+                <div class="image-placeholder"><img src="{{ url_for('static', filename='images/icon.png') }}" alt="" style="width:88px;height:88px;object-fit:contain;"></div>
             {% endif %}
         </div>
         <div class="product-detail-info">
-            <h1>{{ product.name }}</h1>
             {% if product.code %}<span class="product-code">کد: {{ product.code }}</span>{% endif %}
-            <p class="price">{{ "{:,.0f}".format(product.price) }} تومان</p>
+            <h1>{{ product.name }}</h1>
+            <p class="price">{{ product.price | fa_num }} تومان</p>
             {% if product.description %}
                 <p class="description">{{ product.description }}</p>
             {% endif %}
-            <div class="stock-info" style="margin-bottom:1.5rem;">
+            <div class="stock-info">
                 {% if product.stock > 0 %}
-                    <span class="stock-in">موجود در انبار ({{ product.stock }} عدد)</span>
+                    <span class="stock-in">موجود در انبار ({{ product.stock | fa_num }} عدد)</span>
                 {% else %}
                     <span class="stock-out">ناموجود</span>
                 {% endif %}
@@ -32,10 +32,10 @@
                     <label for="qty">تعداد:</label>
                     <input type="number" id="qty" name="quantity" value="1" min="1" max="{{ product.stock }}">
                 </div>
-                <button type="submit" class="btn btn-primary btn-lg">افزودن به سبد خرید</button>
+                <button type="submit" class="btn btn-primary btn-block">افزودن به سبد خرید</button>
             </form>
             {% endif %}
-            <a href="{{ url_for('home') }}" class="btn btn-secondary" style="margin-top:.8rem;">بازگشت</a>
+            <a href="{{ url_for('home') }}" class="btn btn-secondary" style="margin-top:.9rem;">بازگشت به محصولات</a>
         </div>
     </div>
 </div>

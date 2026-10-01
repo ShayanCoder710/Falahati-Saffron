@@ -5,20 +5,24 @@
     <div class="payment-container">
         <h1>درگاه پرداخت</h1>
         <div class="payment-info">
-            <p>مبلغ قابل پرداخت: <strong>{{ "{:,.0f}".format(order.total_price) }} تومان</strong></p>
-            <p>شماره سفارش: #{{ order.id }}</p>
+            <p>مبلغ قابل پرداخت: <strong>{{ order.total_price | fa_num }} تومان</strong></p>
+            <p>شماره سفارش: #{{ order.id | fa_num }}</p>
         </div>
-        <a href="{{ payment_url }}" class="btn btn-primary btn-lg btn-block" target="_blank" rel="noopener">
-            پرداخت آنلاین
-        </a>
-        <form method="POST" action="{{ url_for('payment_verify') }}" class="mock-verify" style="margin-top:1rem;">
-            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-            <input type="hidden" name="payment_ref" value="{{ order.payment_ref }}">
-            <button type="submit" class="btn btn-secondary btn-block">تأیید پرداخت (تست سندباکس)</button>
-        </form>
-        <p class="payment-note">
-            {% if mock %}حالت تستی (mock) فعال است — درگاه واقعی متصل نیست؛ با دکمه بالایی پرداخت را شبیه‌سازی کنید.{% else %}این یک صفحه نمونه برای تست است (Sandbox){% endif %}
-        </p>
+        <div class="payment-mock-actions">
+            <form method="POST" action="{{ url_for('payment_verify') }}">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <input type="hidden" name="payment_ref" value="{{ order.payment_ref }}">
+                <input type="hidden" name="result" value="success">
+                <button type="submit" class="btn btn-primary btn-block">پرداخت موفق</button>
+            </form>
+            <form method="POST" action="{{ url_for('payment_verify') }}">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <input type="hidden" name="payment_ref" value="{{ order.payment_ref }}">
+                <input type="hidden" name="result" value="fail">
+                <button type="submit" class="btn btn-danger btn-block">پرداخت ناموفق</button>
+            </form>
+        </div>
+        <p class="payment-note">محیط تستی فعال است — پرداخت واقعی انجام نمی‌شود؛ با دکمه‌های بالا نتیجه را شبیه‌سازی کنید.</p>
     </div>
 </div>
 {% endblock %}

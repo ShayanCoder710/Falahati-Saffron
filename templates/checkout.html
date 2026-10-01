@@ -3,21 +3,18 @@
 {% block content %}
 <div class="container">
     <h1 class="page-title">تکمیل خرید</h1>
-    {% if not stock_ok %}
-    <div class="alert alert-danger">برای برخی اقلام، موجودی انبار کمتر از تعداد سبد شماست — تعداد را در سبد خرید کاهش دهید.</div>
-    {% endif %}
     <div class="checkout-container">
         <div class="checkout-summary">
             <h2>خلاصه سفارش</h2>
             {% for item in items %}
             <div class="summary-item">
-                <span>{{ item.product.name }} × {{ item.quantity }}</span>
-                <span>{{ "{:,.0f}".format(item.product.price * item.quantity) }} تومان</span>
+                <span>{{ item.product.name }} × {{ item.quantity | fa_num }}</span>
+                <span>{{ (item.product.price * item.quantity) | fa_num }} تومان</span>
             </div>
             {% endfor %}
             <div class="summary-total">
                 <span>جمع کل</span>
-                <span>{{ "{:,.0f}".format(total) }} تومان</span>
+                <span>{{ total | fa_num }} تومان</span>
             </div>
         </div>
         <form method="POST" class="checkout-form">
@@ -29,7 +26,7 @@
             </div>
             <div class="form-group">
                 <label for="phone">شماره تماس</label>
-                <input type="tel" id="phone" name="phone" value="{{ user.phone or '' }}" required placeholder="09xxxxxxxxx">
+                <input type="tel" id="phone" name="phone" value="{{ user.phone or '' }}" required placeholder="09123456789">
             </div>
             <div class="form-group">
                 <label for="address">آدرس کامل</label>
