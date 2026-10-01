@@ -43,5 +43,51 @@
             <a href="{{ url_for('admin_products') }}" class="btn btn-secondary">انصراف</a>
         </div>
     </form>
+    {% if product %}
+    <div class="dashboard-section discount-section">
+        <h3>تخفیف‌های این محصول</h3>
+        {% if product.discounts %}
+        <div class="discount-list">
+            {% for d in product.discounts %}
+            <div class="discount-row">
+                <div class="discount-info">
+                    <span class="discount-percent">{{ d.percent | fa_num }}٪</span>
+                    <span class="discount-range">
+                        {% if d.max_quantity %}از {{ d.min_quantity | fa_num }} تا {{ d.max_quantity | fa_num }} عدد{% else %}از {{ d.min_quantity | fa_num }} عدد به بالا{% endif %}
+                    </span>
+                    <span class="discount-price">
+                        {{ (product.price | float * (100 - d.percent) / 100) | fa_num }} تومان
+                    </span>
+                </div>
+                <form method="POST" action="{{ url_for('admin_discount_delete', pid=product.id, did=d.id) }}">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <button type="submit" class="btn btn-danger btn-sm">حذف</button>
+                </form>
+            </div>
+            {% endfor %}
+        </div>
+        {% else %}
+        <p class="no-discounts">برای این محصول تخفیفی ثبت نشده است.</p>
+        {% endif %}
+        <form method="POST" action="{{ url_for('admin_discount_add', pid=product.id) }}" class="discount-add-form">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <div class="discount-fields">
+                <div class="form-group">
+                    <label for="d_min">از تعداد</label>
+                    <input type="number" id="d_min" name="min_quantity" min="1" placeholder="۱">
+                </div>
+                <div class="form-group">
+                    <label for="d_max">تا تعداد</label>
+                    <input type="number" id="d_max" name="max_quantity" min="1" placeholder="خالی = نامحدود">
+                </div>
+                <div class="form-group">
+                    <label for="d_pct">درصد تخفیف</label>
+                    <input type="number" id="d_pct" name="percent" min="1" max="90" placeholder="۱۰">
+                </div>
+            </div>
+            <button type="submit" class="btn btn-primary">افزودن تخفیف</button>
+        </form>
+    </div>
+    {% endif %}
 </div>
 {% endblock %}

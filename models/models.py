@@ -1,6 +1,5 @@
 import hashlib
 import secrets
-import uuid
 from datetime import datetime
 
 from extensions import db
@@ -83,6 +82,37 @@ class User(db.Model):
 
     def __repr__(self):
         return f'<User {self.username}>'
+
+
+class Discount(db.Model):
+    __tablename__ = 'discount'
+
+    id = db.Column(db.Integer, primary_key=True)
+    product_id = db.Column(db.Integer, db.ForeignKey('product.id'), nullable=False)
+    min_quantity = db.Column(db.Integer, nullable=False, default=1)
+    max_quantity = db.Column(db.Integer, nullable=True)
+    percent = db.Column(db.Integer, nullable=False, default=0)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+    product = db.relationship('Product', backref=db.backref('discounts', lazy='select', cascade='all, delete-orphan'))
+
+    def __repr__(self):
+        return f'<Discount {self.id} {self.percent}% from {self.min_quantity}>'
+
+    def applies_to(self, quantity):
+        if quantity < self.min_quantity:
+            return False
+        return self.max_quantity is None or quantity <= self.max_quantity
+
+    def price_for(self, quantity, unit_price):
+        if not self.applies_to(quantity):
+            return float(unit_price)
+        return round(float(unit_price) * (100 - self.percent) / 100, 2)
+
+    @classmethod
+    def best_for(cls, product_id, quantity):
+        matches = [d for d in cls.query.filter_by(product_id=product_id).all() if d.applies_to(quantity)]
+        return max(matches, key=lambda d: d.percent) if matches else None
 
 
 class AboutContent(db.Model):

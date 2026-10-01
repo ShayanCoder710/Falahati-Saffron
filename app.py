@@ -8,7 +8,7 @@ from sqlalchemy import func, or_
 
 from config import *
 from extensions import db, csrf
-from models.models import AboutContent, FooterContent, Order, OrderItem, Product, User
+from models.models import AboutContent, Discount, FooterContent, Order, OrderItem, Product, User
 
 STATUS_LABELS = {
     'pending': 'در انتظار پرداخت',
@@ -18,11 +18,21 @@ STATUS_LABELS = {
     'cancelled': 'لغو شده',
 }
 
+STATUS_ICONS = {
+    'pending': '⏳',
+    'paid': '✓',
+    'shipped': '📦',
+    'completed': '🏁',
+    'cancelled': '✕',
+}
+
 VALID_STATUSES = list(STATUS_LABELS)
 
 IMAGE_EXTENSIONS = {'.png', '.jpg', '.jpeg', '.webp', '.gif'}
 
 USERNAME_TAKEN = 'این نام کاربری قبلاً ثبت شده است'
+
+INVALID_NUMBER = 'قیمت و موجودی باید عدد معتبر و مثبت باشد'
 
 
 def create_app():
@@ -54,6 +64,24 @@ def create_app():
         path = Path(app.config['UPLOAD_FOLDER']) / filename
         if path.is_file():
             path.unlink()
+
+    def parse_int(raw, default=None):
+        value = (raw or '').strip()
+        if not value:
+            return default
+        try:
+            return int(value)
+        except ValueError:
+            return None
+
+    def parse_number(form, field, default=None):
+        raw = (form.get(field) or '').strip()
+        if not raw:
+            return default
+        try:
+            return float(raw)
+        except ValueError:
+            return None
 
     def admin_required(f):
         @wraps(f)
@@ -95,12 +123,17 @@ def create_app():
             if not product:
                 continue
             quantity = min(int(entry['quantity']), product.stock or 0)
+            discount = Discount.best_for(product.id, quantity)
+            unit_price = discount.price_for(quantity, product.price) if discount else float(product.price)
             details.append({
                 'product': product,
                 'quantity': quantity,
                 'max_qty': product.stock or 0,
+                'unit_price': unit_price,
+                'discount': discount,
+                'saved': round(float(product.price) - unit_price, 2) * quantity,
             })
-            total += float(product.price) * quantity
+            total += unit_price * quantity
         return details, total
 
     def get_user_orders(user_id):
@@ -125,7 +158,12 @@ def create_app():
 
     @app.context_processor
     def inject_globals():
-        return {'status_labels': STATUS_LABELS}
+        cart = session.get('cart') or []
+        return {
+            'status_labels': STATUS_LABELS,
+            'status_icons': STATUS_ICONS,
+            'cart_count': sum(int(i.get('quantity', 0)) for i in cart),
+        }
 
     @app.template_filter('fa_num')
     def fa_num(value, decimals=0):
@@ -155,12 +193,12 @@ def create_app():
     @app.route('/api/username-available', methods=['GET'])
     def username_available():
         username = (request.args.get('username') or '').strip()
-        ignore_id = request.args.get('ignore_id')
+        ignore_id = request.args.get('ignore_id', type=int)
         available = False
         if len(username) >= 3:
             query = User.query.filter(func.lower(User.username) == username.lower())
             if ignore_id:
-                query = query.filter(User.id != int(ignore_id))
+                query = query.filter(User.id != ignore_id)
             available = query.first() is None
         return jsonify(available=available, checked=username)
 
@@ -168,10 +206,8 @@ def create_app():
     def products_api():
         keyword = (request.args.get('q') or '').strip()
         products = search_products(keyword)
-        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
-            grid = render_template('_product_grid.html', products=products, q=keyword)
-            return jsonify(count=len(products), q=keyword, html=grid)
-        return render_template('home.html', products=products, q=keyword)
+        grid = render_template('_product_grid.html', products=products, q=keyword)
+        return jsonify(count=len(products), q=keyword, html=grid)
 
     @app.route('/about')
     def about():
@@ -179,7 +215,10 @@ def create_app():
 
     @app.route('/product/<int:pid>')
     def product_detail(pid):
-        return render_template('product_detail.html', product=db.session.get(Product, pid))
+        product = db.session.get(Product, pid)
+        if product is None:
+            abort(404)
+        return render_template('product_detail.html', product=product)
 
     @app.route('/cart', methods=['GET', 'POST'])
     def cart():
@@ -256,9 +295,16 @@ def create_app():
                 session['cart'] = items
                 session.modified = True
         if is_ajax:
-            _, total = get_cart_details()
+            details, total = get_cart_details()
             current = None if removed or not stock else max(1, min(requested, stock))
-            return jsonify(ok=True, removed=removed, total=total, quantity=current)
+            discount = Discount.best_for(pid, current) if current else None
+            unit_price = discount.price_for(current, product.price) if discount else (float(product.price) if product else 0)
+            return jsonify(
+                ok=True, removed=removed, total=total, quantity=current,
+                count=sum(i['quantity'] for i in details),
+                unit_price=unit_price,
+                percent=discount.percent if discount else 0,
+            )
         return redirect(url_for('cart'))
 
     @app.route('/cart/remove/<int:pid>', methods=['POST'])
@@ -267,8 +313,8 @@ def create_app():
         session['cart'] = [i for i in get_cart() if str(i['product_id']) != str(pid)]
         session.modified = True
         if is_ajax:
-            _, total = get_cart_details()
-            return jsonify(ok=True, total=total)
+            details, total = get_cart_details()
+            return jsonify(ok=True, total=total, count=sum(i['quantity'] for i in details))
         return redirect(url_for('cart'))
 
     def order_stock_available(order):
@@ -328,7 +374,7 @@ def create_app():
                     order_id=order.id,
                     product_id=item['product'].id,
                     quantity=item['quantity'],
-                    price=item['product'].price,
+                    price=item['unit_price'],
                 ))
             db.session.commit()
             session.pop('cart', None)
@@ -521,17 +567,21 @@ def create_app():
     @admin_required
     def admin_product_add():
         if request.method == 'POST':
-            name = request.form.get('name')
-            price = request.form.get('price')
-            if not name or not price:
+            name = (request.form.get('name') or '').strip()
+            price = parse_number(request.form, 'price')
+            stock = parse_number(request.form, 'stock', 0)
+            if not name or not price or price < 0:
                 flash('نام و قیمت محصول الزامی است', 'danger')
+                return render_template('admin/product_form.html')
+            if stock is None or stock < 0:
+                flash(INVALID_NUMBER, 'danger')
                 return render_template('admin/product_form.html')
             product = Product(
                 code=request.form.get('code', ''),
                 name=name,
                 description=request.form.get('description', ''),
-                price=float(price),
-                stock=int(request.form.get('stock', 0) or 0),
+                price=price,
+                stock=int(stock),
                 category=request.form.get('category', ''),
                 image=save_product_image(request.files.get('image')),
             )
@@ -548,11 +598,16 @@ def create_app():
         if product is None:
             abort(404)
         if request.method == 'POST':
+            price = parse_number(request.form, 'price')
+            stock = parse_number(request.form, 'stock', 0)
+            if not price or price < 0 or stock is None or stock < 0:
+                flash(INVALID_NUMBER, 'danger')
+                return render_template('admin/product_form.html', product=product)
             product.code = request.form.get('code', '')
             product.name = request.form.get('name')
             product.description = request.form.get('description', '')
-            product.price = float(request.form.get('price'))
-            product.stock = int(request.form.get('stock', 0) or 0)
+            product.price = price
+            product.stock = int(stock)
             product.category = request.form.get('category', '')
             new_image = save_product_image(request.files.get('image'))
             if new_image:
@@ -570,10 +625,56 @@ def create_app():
         product = db.session.get(Product, pid)
         if product is None:
             abort(404)
+        used = OrderItem.query.filter_by(product_id=product.id).count()
+        if used:
+            flash(f'این محصول در {used} سفارش استفاده شده و قابل حذف نیست. موجودی آن را صفر کنید.', 'danger')
+            return redirect(url_for('admin_products'))
+        image = product.image
         db.session.delete(product)
         db.session.commit()
+        if image:
+            delete_product_image(image)
         flash('محصول حذف شد', 'success')
         return redirect(url_for('admin_products'))
+
+    @app.route('/admin/products/<int:pid>/discounts', methods=['POST'])
+    @admin_required
+    def admin_discount_add(pid):
+        product = db.session.get(Product, pid)
+        if product is None:
+            abort(404)
+        min_qty = parse_int(request.form.get('min_quantity'))
+        max_qty = parse_int(request.form.get('max_quantity'))
+        percent = parse_int(request.form.get('percent'))
+        if percent is None or not 0 < percent <= 90:
+            flash('درصد تخفیف باید بین ۱ تا ۹۰ باشد', 'danger')
+            return redirect(url_for('admin_product_edit', pid=pid))
+        if min_qty is None or min_qty < 1:
+            flash('حداقل تعداد باید عدد مثبت باشد', 'danger')
+            return redirect(url_for('admin_product_edit', pid=pid))
+        if max_qty is not None and max_qty < min_qty:
+            flash('حداکثر تعداد نمی‌تواند کمتر از حداقل باشد', 'danger')
+            return redirect(url_for('admin_product_edit', pid=pid))
+        db.session.add(Discount(
+            product_id=product.id,
+            min_quantity=min_qty,
+            max_quantity=max_qty,
+            percent=percent,
+        ))
+        db.session.commit()
+        flash('تخفیف برای این محصول ثبت شد', 'success')
+        return redirect(url_for('admin_product_edit', pid=pid))
+
+    @app.route('/admin/products/<int:pid>/discounts/<int:did>/delete', methods=['POST'])
+    @admin_required
+    def admin_discount_delete(pid, did):
+        discount = db.session.get(Discount, did)
+        if discount is None or discount.product_id != pid:
+            abort(404)
+        db.session.delete(discount)
+        db.session.commit()
+        flash('تخفیف حذف شد', 'success')
+        return redirect(url_for('admin_product_edit', pid=pid))
 
     @app.route('/admin/orders')
     @admin_required
@@ -608,7 +709,7 @@ def create_app():
             change_stock(order, 1)
         order.status = status
         db.session.commit()
-        flash('وضعیت سفارش تغییر کرد', 'success')
+        flash('وضعیت سفارش تغذیر شد', 'success')
         return redirect(url_for('admin_orders'))
 
     @app.route('/admin/users')

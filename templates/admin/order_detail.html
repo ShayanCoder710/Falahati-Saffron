@@ -47,13 +47,25 @@
 
     <div class="dashboard-section">
         <h3>تغییر وضعیت</h3>
-        <form method="POST" action="{{ url_for('admin_order_status', oid=order.id) }}" class="inline-form">
+        <form method="POST" action="{{ url_for('admin_order_status', oid=order.id) }}" class="status-form">
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-            <select name="status">
-                {% for key, label in status_labels.items() %}
-                <option value="{{ key }}" {% if order.status == key %}selected{% endif %}>{{ label }}</option>
-                {% endfor %}
-            </select>
+            <input type="hidden" name="status" id="statusValue" value="{{ order.status }}">
+            <div class="status-picker" id="statusPicker">
+                <button type="button" class="status-picker-trigger" id="statusTrigger" aria-haspopup="listbox" aria-expanded="false">
+                    <span class="status-picker-icon status-icon--{{ order.status }}">{{ status_icons.get(order.status, '') }}</span>
+                    <span class="status-picker-label" id="statusLabel">{{ status_labels.get(order.status, order.status) }}</span>
+                    <span class="status-picker-arrow"></span>
+                </button>
+                <div class="status-picker-menu" id="statusMenu" role="listbox" hidden>
+                    {% for key, label in status_labels.items() %}
+                    <button type="button" class="status-picker-option status-option--{{ key }}" data-value="{{ key }}" data-label="{{ label }}" data-icon="{{ status_icons.get(key, '') }}" role="option" {% if order.status == key %}aria-selected="true"{% endif %}>
+                        <span class="status-picker-option-icon">{{ status_icons.get(key, '') }}</span>
+                        <span class="status-picker-option-label">{{ label }}</span>
+                        <span class="status-picker-check">✓</span>
+                    </button>
+                    {% endfor %}
+                </div>
+            </div>
             <button type="submit" class="btn btn-primary">ذخیره وضعیت</button>
         </form>
     </div>

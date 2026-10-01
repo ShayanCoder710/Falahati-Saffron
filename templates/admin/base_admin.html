@@ -12,24 +12,20 @@
     <header class="header admin-header">
         <nav class="navbar admin-nav">
             <div class="container">
-                <div class="nav-brand">
-                    <a href="{{ url_for('admin_dashboard') }}">
-                        <img src="{{ url_for('static', filename='images/icon.png') }}" alt="">
-                        <span>پنل ادمین</span>
-                    </a>
-                </div>
-                <ul class="nav-menu">
+                <div class="nav-brand"><a href="{{ url_for('admin_dashboard') }}"><img src="{{ url_for('static', filename='images/icon.png') }}" alt=""> پنل ادمین</a></div>
+                <button class="nav-toggle" id="navToggle" aria-label="منو">
+                    <span></span><span></span><span></span>
+                </button>
+                <ul class="nav-menu" id="navMenu">
                     <li><a href="{{ url_for('admin_dashboard') }}">داشبورد</a></li>
                     <li><a href="{{ url_for('admin_products') }}">محصولات</a></li>
                     <li><a href="{{ url_for('admin_orders') }}">سفارشات</a></li>
                     <li><a href="{{ url_for('admin_users') }}">کاربران</a></li>
                     <li><a href="{{ url_for('admin_about') }}">درباره ما</a></li>
                     <li><a href="{{ url_for('admin_footer') }}">فوتر</a></li>
+                    <li><a href="{{ url_for('home') }}">مشاهده سایت</a></li>
+                    <li><a href="{{ url_for('admin_logout') }}">خروج</a></li>
                 </ul>
-                <div class="admin-nav-actions">
-                    <a href="{{ url_for('home') }}" class="btn btn-ghost btn-sm" title="بازگشت به سایت">مشاهده سایت</a>
-                    <a href="{{ url_for('admin_logout') }}" class="btn btn-danger btn-sm" title="خروج">خروج</a>
-                </div>
             </div>
         </nav>
     </header>
@@ -75,14 +71,76 @@
     <script>
         (function(){
             var menu = document.querySelector('.admin-nav .nav-menu');
-            if (!menu) return;
-            var path = window.location.pathname;
-            menu.querySelectorAll('a').forEach(function(a){
-                var href = a.getAttribute('href');
-                if (href === path || (href.length > 7 && path.indexOf(href) === 0)) {
-                    a.parentElement.classList.add('admin-active');
-                    a.classList.add('active-admin');
-                }
+            if (menu) {
+                var path = window.location.pathname;
+                menu.querySelectorAll('a').forEach(function(a){
+                    var href = a.getAttribute('href');
+                    if (href === path || (href.length > 7 && path.indexOf(href) === 0)) {
+                        a.parentElement.classList.add('admin-active');
+                        a.classList.add('active-admin');
+                    }
+                });
+            }
+        })();
+
+        (function(){
+            var toggle = document.getElementById('navToggle');
+            var menu = document.getElementById('navMenu');
+            if (toggle && menu) {
+                toggle.addEventListener('click', function(){
+                    var open = !menu.classList.contains('active');
+                    menu.classList.toggle('active', open);
+                    toggle.classList.toggle('active', open);
+                });
+                menu.querySelectorAll('a').forEach(function(link){
+                    link.addEventListener('click', function(){
+                        menu.classList.remove('active');
+                        toggle.classList.remove('active');
+                    });
+                });
+            }
+        })();
+
+        (function(){
+            var picker = document.getElementById('statusPicker');
+            if (!picker) return;
+            var trigger = document.getElementById('statusTrigger');
+            var menu = document.getElementById('statusMenu');
+            var label = document.getElementById('statusLabel');
+            var value = document.getElementById('statusValue');
+            var icon = trigger.querySelector('.status-picker-icon');
+
+            function open() {
+                menu.hidden = false;
+                trigger.setAttribute('aria-expanded', 'true');
+            }
+            function close() {
+                menu.hidden = true;
+                trigger.setAttribute('aria-expanded', 'false');
+            }
+            trigger.addEventListener('click', function(e){
+                e.stopPropagation();
+                menu.hidden ? open() : close();
+            });
+            menu.querySelectorAll('.status-picker-option').forEach(function(opt){
+                opt.addEventListener('click', function(){
+                    menu.querySelectorAll('.status-picker-option').forEach(function(o){
+                        o.setAttribute('aria-selected', 'false');
+                    });
+                    opt.setAttribute('aria-selected', 'true');
+                    label.textContent = opt.dataset.label;
+                    value.value = opt.dataset.value;
+                    icon.textContent = opt.dataset.icon;
+                    icon.className = 'status-picker-icon status-icon--' + opt.dataset.value;
+                    close();
+                    trigger.focus();
+                });
+            });
+            document.addEventListener('click', function(e){
+                if (!picker.contains(e.target)) close();
+            });
+            document.addEventListener('keydown', function(e){
+                if (e.key === 'Escape' && !menu.hidden) { close(); trigger.focus(); }
             });
         })();
     </script>

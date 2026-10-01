@@ -7,7 +7,7 @@
         <div class="cart-main">
             <div class="cart-items" id="cartItems"{% if not items %} style="display:none"{% endif %}>
                 {% for item in items %}
-                <div class="cart-item" data-pid="{{ item.product.id }}">
+                <div class="cart-item" data-pid="{{ item.product.id }}" data-base-price="{{ item.product.price }}">
                     <div class="cart-item-image">
                         {% if item.product.image %}
                             <img src="{{ url_for('static', filename='images/' + item.product.image) }}" alt="{{ item.product.name }}">
@@ -17,16 +17,24 @@
                     </div>
                     <div class="cart-item-info">
                         <h3>{{ item.product.name }}</h3>
-                        <p class="price">{{ item.product.price | fa_num }} تومان</p>
+                        {% if item.discount %}
+                        <p class="price price--discounted">
+                            <span class="price-old">{{ item.product.price | fa_num }}</span>
+                            <span class="price-new">{{ item.unit_price | fa_num }}</span>
+                            <span class="price-badge">{{ item.discount.percent | fa_num }}٪ تخفیف</span>
+                        </p>
+                        {% else %}
+                        <p class="price">{{ item.unit_price | fa_num }} تومان</p>
+                        {% endif %}
                     </div>
                     <div class="cart-item-quantity">
                         <form method="POST" action="{{ url_for('cart_update', pid=item.product.id) }}" class="qty-form">
                             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                            <input type="number" name="quantity" value="{{ item.quantity }}" min="1" max="{{ item.max_qty }}" class="qty-auto" data-pid="{{ item.product.id }}" data-price="{{ item.product.price }}">
+                            <input type="number" name="quantity" value="{{ item.quantity }}" min="1" max="{{ item.max_qty }}" class="qty-auto" data-pid="{{ item.product.id }}" data-price="{{ item.unit_price }}">
                         </form>
                         {% if item.max_qty <= 10 %}<small class="qty-note">حداکثر {{ item.max_qty | fa_num }} عدد</small>{% endif %}
                     </div>
-                    <div class="cart-item-total">{{ (item.product.price * item.quantity) | fa_num }} تومان</div>
+                    <div class="cart-item-total">{{ (item.unit_price * item.quantity) | fa_num }} تومان</div>
                     <form method="POST" action="{{ url_for('cart_remove', pid=item.product.id) }}">
                         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                         <button type="submit" class="btn-remove" title="حذف">×</button>
@@ -125,24 +133,51 @@
         document.querySelector('.cart-layout').classList.toggle('cart-layout--empty', !has);
     }
 
+    var navBadge = document.querySelector('.nav-badge');
+    function syncBadge(count){
+        if (!navBadge) return;
+        if (count > 0) navBadge.textContent = faNum(count);
+        else navBadge.remove();
+    }
+
     var pending = new Map();
     items.querySelectorAll('.qty-auto').forEach(function(input){
         input.addEventListener('input', function(){
             var pid = input.getAttribute('data-pid');
-            var price = parseFloat(input.getAttribute('data-price')) || 0;
             var form = input.closest('form');
+            var row = form.closest('.cart-item');
             clearTimeout(pending.get(pid));
             pending.set(pid, setTimeout(function(){
                 fetch(form.action, {method:'POST', headers:{'X-Requested-With':'XMLHttpRequest'}, body:new FormData(form)})
                 .then(function(r){ return r.json(); })
                 .then(function(d){
                     if (d.removed) {
-                        form.closest('.cart-item').remove();
+                        row.remove();
                     } else {
                         input.value = d.quantity;
-                        form.closest('.cart-item').querySelector('.cart-item-total').textContent = faNum(price * d.quantity) + ' تومان';
+                        row.querySelector('.cart-item-total').textContent = faNum(d.unit_price * d.quantity) + ' تومان';
+                        input.setAttribute('data-price', d.unit_price);
+                        var priceEl = row.querySelector('.price');
+                        var badge = row.querySelector('.price-badge');
+                        if (d.percent) {
+                            if (badge) badge.textContent = faNum(d.percent) + '٪ تخفیف';
+                            else {
+                                var wrap = document.createElement('p');
+                                wrap.className = 'price price--discounted';
+                                wrap.innerHTML = '<span class="price-old"></span><span class="price-new"></span><span class="price-badge"></span>';
+                                priceEl.parentNode.replaceChild(wrap, priceEl);
+                                priceEl = wrap;
+                                badge = wrap.querySelector('.price-badge');
+                                badge.textContent = faNum(d.percent) + '٪ تخفیف';
+                            }
+                            priceEl.querySelector('.price-old').textContent = faNum(parseFloat(row.getAttribute('data-base-price')) || 0);
+                            priceEl.querySelector('.price-new').textContent = faNum(d.unit_price);
+                        } else if (badge) {
+                            priceEl.textContent = faNum(d.unit_price) + ' تومان';
+                        }
                     }
                     totalEl.textContent = faNum(d.total) + ' تومان';
+                    syncBadge(d.count);
                     syncEmpty();
                 })
                 .catch(function(){ form.submit(); });
@@ -158,6 +193,7 @@
             .then(function(d){
                 form.closest('.cart-item').remove();
                 totalEl.textContent = faNum(d.total) + ' تومان';
+                syncBadge(d.count);
                 syncEmpty();
             })
             .catch(function(){ location.reload(); });

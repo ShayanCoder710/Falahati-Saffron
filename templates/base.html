@@ -19,12 +19,15 @@
                 <ul class="nav-menu" id="navMenu">
                     <li><a href="{{ url_for('home') }}">صفحه اصلی</a></li>
                     <li><a href="{{ url_for('about') }}">درباره ما</a></li>
-                    <li><a href="{{ url_for('cart') }}">سبد خرید</a></li>
+                    <li><a href="{{ url_for('cart') }}" class="nav-cart">
+                        سبد خرید
+                        {% if cart_count %}<span class="nav-badge">{{ cart_count | fa_num }}</span>{% endif %}
+                    </a></li>
                     {% if session.get('user_id') %}
-                        <li><a href="{{ url_for('profile') }}">حساب کاربری</a></li>
-                        <li><a href="{{ url_for('user_logout') }}">خروج</a></li>
+                        <li><a href="{{ url_for('profile') }}" class="nav-account">حساب کاربری</a></li>
+                        <li><a href="{{ url_for('user_logout') }}" class="nav-logout">خروج</a></li>
                     {% else %}
-                        <li><a href="{{ url_for('user_login') }}">ورود / ثبت‌نام</a></li>
+                        <li><a href="{{ url_for('user_login') }}" class="nav-login">ورود / ثبت‌نام</a></li>
                     {% endif %}
                 </ul>
             </div>
@@ -79,6 +82,15 @@
             menu.classList.toggle('active', open);
             this.classList.toggle('active', open);
         });
+        (function(){
+            var path = window.location.pathname;
+            document.querySelectorAll('#navMenu a').forEach(function(a){
+                var href = a.getAttribute('href');
+                if (href === path || (href !== '/' && path.indexOf(href) === 0)) {
+                    a.classList.add('is-current');
+                }
+            });
+        })();
         document.querySelectorAll('#navMenu a').forEach(function(link){
             link.addEventListener('click', function(){
                 document.getElementById('navMenu').classList.remove('active');
