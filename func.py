@@ -1,7 +1,6 @@
 import hashlib
 import secrets
 
-from flask import Response
 
 from extensions import db
 from models.models import AboutContent, Discount, FooterContent
@@ -96,6 +95,6 @@ def escape_html(value):
     )
 
 
-def data_response(**values):
+def data_html(**values):
     pairs = [f'data-{key.replace("_", "-")}="{escape_html(value)}"' for key, value in values.items()]
-    return Response('<div ' + ' '.join(pairs) + '></div>', mimetype='text/html')
+    return '<div ' + ' '.join(pairs) + '></div>'

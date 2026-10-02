@@ -3,12 +3,12 @@ from datetime import timedelta
 import os
 import secrets
 
-from flask import Flask, Response, abort, flash, redirect, render_template, request, session, url_for
+from flask import Flask, abort, flash, redirect, render_template, request, session, url_for
 from sqlalchemy import func, or_
 
 from config import *
 from extensions import db, csrf
-from func import FOOTER_FIELDS, about_content, best_discount, data_response, discount_price, escape_html, footer_values, hash_password, is_valid_phone, save_about_content, save_footer_values, verify_password
+from func import FOOTER_FIELDS, about_content, best_discount, data_html, discount_price, escape_html, footer_values, hash_password, is_valid_phone, save_about_content, save_footer_values, verify_password
 from models.models import AboutContent, Discount, FooterContent, Order, OrderItem, Product, User
 
 STATUS_LABELS = {
@@ -85,22 +85,6 @@ def create_app():
             return float(raw)
         except ValueError:
             return None
-
-    def admin_required(f):
-        def decorated(*args, **kwargs):
-            if 'admin_id' not in session:
-                return redirect(url_for('admin_login'))
-            return f(*args, **kwargs)
-        decorated.__name__ = f.__name__
-        return decorated
-
-    def login_required(f):
-        def decorated(*args, **kwargs):
-            if 'user_id' not in session:
-                return redirect(url_for('user_login'))
-            return f(*args, **kwargs)
-        decorated.__name__ = f.__name__
-        return decorated
 
     def search_products(keyword):
         if not keyword:
@@ -203,17 +187,14 @@ def create_app():
             if ignore_id:
                 query = query.filter(User.id != ignore_id)
             available = query.first() is None
-        return data_response(available=available, checked=username)
+        return data_html(available=available, checked=username)
 
     @app.route('/api/products', methods=['GET'])
     def products_api():
         keyword = (request.args.get('q') or '').strip()
         products = search_products(keyword)
         grid = render_template('_product_grid.html', products=products, q=keyword)
-        return Response(
-            f'<div data-count="{len(products)}" data-html="{escape_html(grid)}"></div>',
-            mimetype='text/html',
-        )
+        return f'<div data-count="{len(products)}" data-html="{escape_html(grid)}"></div>'
 
     @app.route('/about')
     def about():
@@ -305,7 +286,7 @@ def create_app():
             current = None if removed or not stock else max(1, min(requested, stock))
             discount = best_discount(pid, current) if current else None
             unit_price = discount_price(discount, current, product.price) if discount else (float(product.price) if product else 0)
-            return data_response(
+            return data_html(
                 ok=True, removed=removed, total=total, quantity=current,
                 count=sum(i['quantity'] for i in details),
                 unit_price=unit_price,
@@ -320,7 +301,7 @@ def create_app():
         session.modified = True
         if is_ajax:
             details, total = get_cart_details()
-            return data_response(ok=True, total=total, count=sum(i['quantity'] for i in details))
+            return data_html(ok=True, total=total, count=sum(i['quantity'] for i in details))
         return redirect(url_for('cart'))
 
     def order_stock_available(order):
@@ -342,8 +323,9 @@ def create_app():
         return redirect(url_for('home'))
 
     @app.route('/checkout', methods=['GET', 'POST'])
-    @login_required
     def checkout():
+        if 'user_id' not in session:
+            return redirect(url_for('user_login'))
         if not get_cart():
             flash('سبد خرید خالی است', 'danger')
             return redirect(url_for('cart'))
@@ -402,8 +384,9 @@ def create_app():
         return render_template('payment.html', order=order)
 
     @app.route('/payment/verify', methods=['POST'])
-    @login_required
     def payment_verify():
+        if 'user_id' not in session:
+            return redirect(url_for('user_login'))
         reference = request.form.get('payment_ref')
         order = Order.query.filter_by(payment_ref=reference).first()
         if order is None:
@@ -422,8 +405,9 @@ def create_app():
         return redirect(url_for('order_success', oid=order.id))
 
     @app.route('/order/<int:oid>')
-    @login_required
     def order_success(oid):
+        if 'user_id' not in session:
+            return redirect(url_for('user_login'))
         order = db.session.get(Order, oid)
         if order is None:
             abort(404)
@@ -444,8 +428,9 @@ def create_app():
         )
 
     @app.route('/order/<int:oid>/pay')
-    @login_required
     def order_pay(oid):
+        if 'user_id' not in session:
+            return redirect(url_for('user_login'))
         order = db.session.get(Order, oid)
         if order is None:
             abort(404)
@@ -500,8 +485,9 @@ def create_app():
         return redirect(url_for('home'))
 
     @app.route('/profile', methods=['GET', 'POST'])
-    @login_required
     def profile():
+        if 'user_id' not in session:
+            return redirect(url_for('user_login'))
         user = db.session.get(User, session['user_id'])
         orders = user.orders
         context = {
@@ -551,8 +537,9 @@ def create_app():
         return redirect(url_for('admin_login'))
 
     @app.route('/admin')
-    @admin_required
     def admin_dashboard():
+        if 'admin_id' not in session:
+            return redirect(url_for('admin_login'))
         return render_template(
             'admin/dashboard.html',
             products_count=Product.query.count(),
@@ -565,13 +552,15 @@ def create_app():
         )
 
     @app.route('/admin/products')
-    @admin_required
     def admin_products():
+        if 'admin_id' not in session:
+            return redirect(url_for('admin_login'))
         return render_template('admin/products.html', products=Product.query.all())
 
     @app.route('/admin/products/add', methods=['GET', 'POST'])
-    @admin_required
     def admin_product_add():
+        if 'admin_id' not in session:
+            return redirect(url_for('admin_login'))
         if request.method == 'POST':
             name = (request.form.get('name') or '').strip()
             price = parse_number(request.form, 'price')
@@ -598,8 +587,9 @@ def create_app():
         return render_template('admin/product_form.html')
 
     @app.route('/admin/products/edit/<int:pid>', methods=['GET', 'POST'])
-    @admin_required
     def admin_product_edit(pid):
+        if 'admin_id' not in session:
+            return redirect(url_for('admin_login'))
         product = db.session.get(Product, pid)
         if product is None:
             abort(404)
@@ -626,8 +616,9 @@ def create_app():
         return render_template('admin/product_form.html', product=product)
 
     @app.route('/admin/products/delete/<int:pid>', methods=['POST'])
-    @admin_required
     def admin_product_delete(pid):
+        if 'admin_id' not in session:
+            return redirect(url_for('admin_login'))
         product = db.session.get(Product, pid)
         if product is None:
             abort(404)
@@ -644,8 +635,9 @@ def create_app():
         return redirect(url_for('admin_products'))
 
     @app.route('/admin/products/<int:pid>/discounts', methods=['POST'])
-    @admin_required
     def admin_discount_add(pid):
+        if 'admin_id' not in session:
+            return redirect(url_for('admin_login'))
         product = db.session.get(Product, pid)
         if product is None:
             abort(404)
@@ -672,8 +664,9 @@ def create_app():
         return redirect(url_for('admin_product_edit', pid=pid))
 
     @app.route('/admin/products/<int:pid>/discounts/<int:did>/delete', methods=['POST'])
-    @admin_required
     def admin_discount_delete(pid, did):
+        if 'admin_id' not in session:
+            return redirect(url_for('admin_login'))
         discount = db.session.get(Discount, did)
         if discount is None or discount.product_id != pid:
             abort(404)
@@ -683,14 +676,16 @@ def create_app():
         return redirect(url_for('admin_product_edit', pid=pid))
 
     @app.route('/admin/orders')
-    @admin_required
     def admin_orders():
+        if 'admin_id' not in session:
+            return redirect(url_for('admin_login'))
         orders = Order.query.order_by(Order.created_at.desc()).all()
         return render_template('admin/orders.html', orders=orders)
 
     @app.route('/admin/orders/<int:oid>')
-    @admin_required
     def admin_order_detail(oid):
+        if 'admin_id' not in session:
+            return redirect(url_for('admin_login'))
         order = db.session.get(Order, oid)
         if order is None:
             abort(404)
@@ -702,8 +697,9 @@ def create_app():
         return render_template('admin/order_detail.html', order=order, items=items)
 
     @app.route('/admin/orders/<int:oid>/status', methods=['POST'])
-    @admin_required
     def admin_order_status(oid):
+        if 'admin_id' not in session:
+            return redirect(url_for('admin_login'))
         order = db.session.get(Order, oid)
         if order is None:
             abort(404)
@@ -719,14 +715,16 @@ def create_app():
         return redirect(url_for('admin_orders'))
 
     @app.route('/admin/users')
-    @admin_required
     def admin_users():
+        if 'admin_id' not in session:
+            return redirect(url_for('admin_login'))
         users = User.query.order_by(User.created_at.desc()).all()
         return render_template('admin/users.html', users=users)
 
     @app.route('/admin/users/<int:uid>/delete', methods=['POST'])
-    @admin_required
     def admin_user_delete(uid):
+        if 'admin_id' not in session:
+            return redirect(url_for('admin_login'))
         user = db.session.get(User, uid)
         if user is None:
             abort(404)
@@ -737,8 +735,9 @@ def create_app():
         return redirect(url_for('admin_users'))
 
     @app.route('/admin/about', methods=['GET', 'POST'])
-    @admin_required
     def admin_about():
+        if 'admin_id' not in session:
+            return redirect(url_for('admin_login'))
         content = about_content()
         if request.method == 'POST':
             save_about_content(request.form.get('content', ''))
@@ -747,8 +746,9 @@ def create_app():
         return render_template('admin/about.html', content=content)
 
     @app.route('/admin/footer', methods=['GET', 'POST'])
-    @admin_required
     def admin_footer():
+        if 'admin_id' not in session:
+            return redirect(url_for('admin_login'))
         if request.method == 'POST':
             save_footer_values(**{
                 field: (request.form.get(field) or '').strip()
