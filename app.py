@@ -1,38 +1,14 @@
 from datetime import timedelta
-from functools import wraps
 
 import os
 import secrets
 
-from flask import (
-    Flask,
-    Response,
-    abort,
-    flash,
-    redirect,
-    render_template,
-    request,
-    session,
-    url_for,
-)
+from flask import Flask, Response, abort, flash, redirect, render_template, request, session, url_for
 from sqlalchemy import func, or_
 
 from config import *
 from extensions import db, csrf
-from func import (
-    FOOTER_FIELDS,
-    about_content,
-    best_discount,
-    data_response,
-    discount_price,
-    escape_html,
-    footer_values,
-    hash_password,
-    is_valid_phone,
-    save_about_content,
-    save_footer_values,
-    verify_password,
-)
+from func import FOOTER_FIELDS, about_content, best_discount, data_response, discount_price, escape_html, footer_values, hash_password, is_valid_phone, save_about_content, save_footer_values, verify_password
 from models.models import AboutContent, Discount, FooterContent, Order, OrderItem, Product, User
 
 STATUS_LABELS = {
@@ -111,19 +87,19 @@ def create_app():
             return None
 
     def admin_required(f):
-        @wraps(f)
         def decorated(*args, **kwargs):
             if 'admin_id' not in session:
                 return redirect(url_for('admin_login'))
             return f(*args, **kwargs)
+        decorated.__name__ = f.__name__
         return decorated
 
     def login_required(f):
-        @wraps(f)
         def decorated(*args, **kwargs):
             if 'user_id' not in session:
                 return redirect(url_for('user_login'))
             return f(*args, **kwargs)
+        decorated.__name__ = f.__name__
         return decorated
 
     def search_products(keyword):
