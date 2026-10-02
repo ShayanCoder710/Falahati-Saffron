@@ -237,6 +237,9 @@ def create_app():
             return redirect(url_for('cart'))
         details, total = get_cart_details()
         user = db.session.get(User, session['user_id'])
+        if user is None:
+            session.pop('user_id', None)
+            return redirect(url_for('user_login'))
         if request.method != 'POST':
             return render_template('checkout.html', items=details, total=total, user=user)
         name = (request.form.get('name') or '').strip()
@@ -395,6 +398,9 @@ def create_app():
         if 'user_id' not in session:
             return redirect(url_for('user_login'))
         user = db.session.get(User, session['user_id'])
+        if user is None:
+            session.pop('user_id', None)
+            return redirect(url_for('user_login'))
         orders = user.orders
         context = {
             'user': user,

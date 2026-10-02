@@ -11,7 +11,7 @@ FOOTER_FIELDS = {
     'brand_name': 'زعفران فلاحتی',
     'tagline': 'زعفران اصل فلاحتی با کیفیت برتر، از مزارع تا خانه شما — ارسال مطمئن به سراسر کشور.',
     'phone': '09123456789',
-    'email': 'info@safferon-felahati.ir',
+    'email': 'info@safferon-falahati.ir',
     'hours': 'شنبه تا پنجشنبه، ۹ صبح تا ۶ عصر',
     'copyright': 'تمامی حقوق محفوظ است.',
 }
