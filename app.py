@@ -709,7 +709,7 @@ def create_app():
             change_stock(order, 1)
         order.status = status
         db.session.commit()
-        flash('وضعیت سفارش تغذیر شد', 'success')
+        flash('وضعیت سفارش تغییر شد', 'success')
         return redirect(url_for('admin_orders'))
 
     @app.route('/admin/users')

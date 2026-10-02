@@ -2225,12 +2225,16 @@ code {
     border-radius: var(--radius);
     border: 1px solid var(--border);
     box-shadow: var(--shadow);
-    overflow: hidden;
+    overflow-x: auto;
+    overflow-y: hidden;
+    -webkit-overflow-scrolling: touch;
 }
 
 .table-wrap .data-table {
     border-collapse: separate;
     border-spacing: 0;
+    width: 100%;
+    min-width: max-content;
 }
 
 .table-wrap .data-table thead th {

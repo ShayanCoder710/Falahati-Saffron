@@ -26,7 +26,8 @@
 
     <div class="dashboard-section">
         <h3>اقلام سفارش</h3>
-        <table class="data-table">
+        <div class="table-wrap">
+            <table class="data-table">
             <thead><tr><th>محصول</th><th>تعداد</th><th>قیمت واحد</th><th>جمع</th></tr></thead>
             <tbody>
             {% for it in items %}
@@ -43,6 +44,7 @@
             </tr>
             </tbody>
         </table>
+        </div>
     </div>
 
     <div class="dashboard-section">
