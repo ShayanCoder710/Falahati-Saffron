@@ -149,18 +149,27 @@
             clearTimeout(pending.get(pid));
             pending.set(pid, setTimeout(function(){
                 fetch(form.action, {method:'POST', headers:{'X-Requested-With':'XMLHttpRequest'}, body:new FormData(form)})
-                .then(function(r){ return r.json(); })
-                .then(function(d){
-                    if (d.removed) {
+                .then(function(r){ return r.text(); })
+                .then(function(t){
+                    var box = document.createElement('div');
+                    box.innerHTML = t;
+                    var d = box.firstElementChild;
+                    var removed = d.getAttribute('data-removed') === 'True';
+                    var quantity = Number(d.getAttribute('data-quantity'));
+                    var unitPrice = Number(d.getAttribute('data-unit-price'));
+                    var percent = Number(d.getAttribute('data-percent'));
+                    var total = Number(d.getAttribute('data-total'));
+                    var count = Number(d.getAttribute('data-count'));
+                    if (removed) {
                         row.remove();
                     } else {
-                        input.value = d.quantity;
-                        row.querySelector('.cart-item-total').textContent = faNum(d.unit_price * d.quantity) + ' تومان';
-                        input.setAttribute('data-price', d.unit_price);
+                        input.value = quantity;
+                        row.querySelector('.cart-item-total').textContent = faNum(unitPrice * quantity) + ' تومان';
+                        input.setAttribute('data-price', unitPrice);
                         var priceEl = row.querySelector('.price');
                         var badge = row.querySelector('.price-badge');
-                        if (d.percent) {
-                            if (badge) badge.textContent = faNum(d.percent) + '٪ تخفیف';
+                        if (percent) {
+                            if (badge) badge.textContent = faNum(percent) + '٪ تخفیف';
                             else {
                                 var wrap = document.createElement('p');
                                 wrap.className = 'price price--discounted';
@@ -168,16 +177,16 @@
                                 priceEl.parentNode.replaceChild(wrap, priceEl);
                                 priceEl = wrap;
                                 badge = wrap.querySelector('.price-badge');
-                                badge.textContent = faNum(d.percent) + '٪ تخفیف';
+                                badge.textContent = faNum(percent) + '٪ تخفیف';
                             }
                             priceEl.querySelector('.price-old').textContent = faNum(parseFloat(row.getAttribute('data-base-price')) || 0);
-                            priceEl.querySelector('.price-new').textContent = faNum(d.unit_price);
+                            priceEl.querySelector('.price-new').textContent = faNum(unitPrice);
                         } else if (badge) {
-                            priceEl.textContent = faNum(d.unit_price) + ' تومان';
+                            priceEl.textContent = faNum(unitPrice) + ' تومان';
                         }
                     }
-                    totalEl.textContent = faNum(d.total) + ' تومان';
-                    syncBadge(d.count);
+                    totalEl.textContent = faNum(total) + ' تومان';
+                    syncBadge(count);
                     syncEmpty();
                 })
                 .catch(function(){ form.submit(); });
@@ -189,11 +198,14 @@
         form.addEventListener('submit', function(e){
             e.preventDefault();
             fetch(form.action, {method:'POST', headers:{'X-Requested-With':'XMLHttpRequest'}, body:new FormData(form)})
-            .then(function(r){ return r.json(); })
-            .then(function(d){
+            .then(function(r){ return r.text(); })
+            .then(function(t){
+                var box = document.createElement('div');
+                box.innerHTML = t;
+                var d = box.firstElementChild;
                 form.closest('.cart-item').remove();
-                totalEl.textContent = faNum(d.total) + ' تومان';
-                syncBadge(d.count);
+                totalEl.textContent = faNum(Number(d.getAttribute('data-total'))) + ' تومان';
+                syncBadge(Number(d.getAttribute('data-count')));
                 syncEmpty();
             })
             .catch(function(){ location.reload(); });

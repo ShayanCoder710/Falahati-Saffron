@@ -1,14 +1,38 @@
-import re
-import uuid
 from datetime import timedelta
 from functools import wraps
-from pathlib import Path
 
-from flask import Flask, abort, flash, jsonify, redirect, render_template, request, session, url_for
+import os
+import secrets
+
+from flask import (
+    Flask,
+    Response,
+    abort,
+    flash,
+    redirect,
+    render_template,
+    request,
+    session,
+    url_for,
+)
 from sqlalchemy import func, or_
 
 from config import *
 from extensions import db, csrf
+from func import (
+    FOOTER_FIELDS,
+    about_content,
+    best_discount,
+    data_response,
+    discount_price,
+    escape_html,
+    footer_values,
+    hash_password,
+    is_valid_phone,
+    save_about_content,
+    save_footer_values,
+    verify_password,
+)
 from models.models import AboutContent, Discount, FooterContent, Order, OrderItem, Product, User
 
 STATUS_LABELS = {
@@ -40,7 +64,7 @@ def create_app():
     app = Flask(__name__)
     app.config['SECRET_KEY'] = SECRET_KEY
     app.config['SQLALCHEMY_DATABASE_URI'] = SQLALCHEMY_DATABASE_URI
-    app.config['UPLOAD_FOLDER'] = str(Path(app.root_path) / 'static' / 'images')
+    app.config['UPLOAD_FOLDER'] = os.path.join(app.root_path, 'static', 'images')
     app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(days=90)
     app.config['SESSION_REFRESH_EACH_REQUEST'] = True
 
@@ -53,20 +77,20 @@ def create_app():
     def save_product_image(file_storage):
         if not file_storage or not file_storage.filename:
             return None
-        suffix = Path(file_storage.filename).suffix.lower()
+        suffix = os.path.splitext(file_storage.filename)[1].lower()
         if suffix not in IMAGE_EXTENSIONS:
             flash('نوع فایل عکس مجاز نیست', 'danger')
             return None
-        folder = Path(app.config['UPLOAD_FOLDER'])
-        folder.mkdir(parents=True, exist_ok=True)
-        filename = f'{uuid.uuid4().hex}{suffix}'
-        file_storage.save(folder / filename)
+        folder = app.config['UPLOAD_FOLDER']
+        os.makedirs(folder, exist_ok=True)
+        filename = f'{secrets.token_hex(16)}{suffix}'
+        file_storage.save(os.path.join(folder, filename))
         return filename
 
     def delete_product_image(filename):
-        path = Path(app.config['UPLOAD_FOLDER']) / filename
-        if path.is_file():
-            path.unlink()
+        target = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+        if os.path.isfile(target):
+            os.remove(target)
 
     def parse_int(raw, default=None):
         value = (raw or '').strip()
@@ -126,8 +150,8 @@ def create_app():
             if not product:
                 continue
             quantity = min(int(entry['quantity']), product.stock or 0)
-            discount = Discount.best_for(product.id, quantity)
-            unit_price = discount.price_for(quantity, product.price) if discount else float(product.price)
+            discount = best_discount(product.id, quantity)
+            unit_price = discount_price(discount, quantity, product.price) if discount else float(product.price)
             details.append({
                 'product': product,
                 'quantity': quantity,
@@ -157,7 +181,7 @@ def create_app():
 
     @app.context_processor
     def inject_footer():
-        return {'footer': FooterContent.get_values()}
+        return {'footer': footer_values()}
 
     @app.context_processor
     def inject_globals():
@@ -203,18 +227,21 @@ def create_app():
             if ignore_id:
                 query = query.filter(User.id != ignore_id)
             available = query.first() is None
-        return jsonify(available=available, checked=username)
+        return data_response(available=available, checked=username)
 
     @app.route('/api/products', methods=['GET'])
     def products_api():
         keyword = (request.args.get('q') or '').strip()
         products = search_products(keyword)
         grid = render_template('_product_grid.html', products=products, q=keyword)
-        return jsonify(count=len(products), q=keyword, html=grid)
+        return Response(
+            f'<div data-count="{len(products)}" data-html="{escape_html(grid)}"></div>',
+            mimetype='text/html',
+        )
 
     @app.route('/about')
     def about():
-        return render_template('about.html', content=AboutContent.get_content())
+        return render_template('about.html', content=about_content())
 
     @app.route('/product/<int:pid>')
     def product_detail(pid):
@@ -300,9 +327,9 @@ def create_app():
         if is_ajax:
             details, total = get_cart_details()
             current = None if removed or not stock else max(1, min(requested, stock))
-            discount = Discount.best_for(pid, current) if current else None
-            unit_price = discount.price_for(current, product.price) if discount else (float(product.price) if product else 0)
-            return jsonify(
+            discount = best_discount(pid, current) if current else None
+            unit_price = discount_price(discount, current, product.price) if discount else (float(product.price) if product else 0)
+            return data_response(
                 ok=True, removed=removed, total=total, quantity=current,
                 count=sum(i['quantity'] for i in details),
                 unit_price=unit_price,
@@ -317,7 +344,7 @@ def create_app():
         session.modified = True
         if is_ajax:
             details, total = get_cart_details()
-            return jsonify(ok=True, total=total, count=sum(i['quantity'] for i in details))
+            return data_response(ok=True, total=total, count=sum(i['quantity'] for i in details))
         return redirect(url_for('cart'))
 
     def order_stock_available(order):
@@ -355,7 +382,7 @@ def create_app():
             flash('لطفا تمام فیلدها را پر کنید', 'danger')
         elif len(name) < 3 or len(address) < 5:
             flash('نام و آدرس را کامل وارد کنید', 'danger')
-        elif not re.fullmatch(r'0\d{9,10}', phone.replace('+98', '').lstrip()):
+        elif not is_valid_phone(phone):
             flash('شماره تماس معتبر نیست (مثال: 09123456789)', 'danger')
         elif any((item['product'].stock or 0) < item['quantity'] for item in details):
             flash('موجودی برخی محصولات کافی نیست، تعداد را در سبد خرید کاهش دهید', 'danger')
@@ -368,7 +395,7 @@ def create_app():
                 customer_address=address,
                 total_price=total,
                 status='pending',
-                payment_ref=str(uuid.uuid4()),
+                payment_ref=secrets.token_hex(16),
             )
             db.session.add(order)
             db.session.flush()
@@ -468,7 +495,7 @@ def create_app():
             flash(USERNAME_TAKEN, 'danger')
         else:
             user = User(username=username, full_name=full_name, phone=phone, address=address)
-            user.set_password(password)
+            user.password_hash = hash_password(password)
             db.session.add(user)
             db.session.commit()
             session['user_id'] = user.id
@@ -481,7 +508,7 @@ def create_app():
     def user_login():
         if request.method == 'POST':
             user = User.query.filter_by(username=(request.form.get('username') or '').strip()).first()
-            if user and user.check_password(request.form.get('password', '')):
+            if user and verify_password(user.password_hash, request.form.get('password', '')):
                 session['user_id'] = user.id
                 session.permanent = True
                 flash('ورود موفقیت آمیز بود', 'success')
@@ -736,9 +763,9 @@ def create_app():
     @app.route('/admin/about', methods=['GET', 'POST'])
     @admin_required
     def admin_about():
-        content = AboutContent.get_content()
+        content = about_content()
         if request.method == 'POST':
-            AboutContent.set_content(request.form.get('content', ''))
+            save_about_content(request.form.get('content', ''))
             flash('متن درباره ما ذخیره شد', 'success')
             return redirect(url_for('admin_about'))
         return render_template('admin/about.html', content=content)
@@ -747,13 +774,13 @@ def create_app():
     @admin_required
     def admin_footer():
         if request.method == 'POST':
-            FooterContent.save_values(**{
+            save_footer_values(**{
                 field: (request.form.get(field) or '').strip()
-                for field in FooterContent.FIELDS
+                for field in FOOTER_FIELDS
             })
             flash('اطلاعات فوتر ذخیره شد', 'success')
             return redirect(url_for('admin_footer'))
-        return render_template('admin/footer.html', **FooterContent.get_values())
+        return render_template('admin/footer.html', **footer_values())
 
     @app.errorhandler(404)
     def not_found(error):

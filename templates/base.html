@@ -139,9 +139,12 @@
                     var url = '/api/username-available?username=' + encodeURIComponent(u);
                     if (ignoreId) url += '&ignore_id=' + encodeURIComponent(ignoreId);
                     fetch(url, { headers: { 'X-Requested-With': 'XMLHttpRequest' } })
-                    .then(function(r){ return r.json(); })
-                    .then(function(data){
-                        if (data.available) setState('is-available', 'این نام کاربری در دسترس است');
+                    .then(function(r){ return r.text(); })
+                    .then(function(t){
+                        var box = document.createElement('div');
+                        box.innerHTML = t;
+                        var available = box.firstElementChild.getAttribute('data-available') === 'True';
+                        if (available) setState('is-available', 'این نام کاربری در دسترس است');
                         else setState('is-taken', 'این نام کاربری در دسترس نیست');
                     })
                     .catch(function(){ setState(null, ''); });
