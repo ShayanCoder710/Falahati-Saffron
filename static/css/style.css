@@ -115,6 +115,10 @@ code {
     padding: 1rem 0 .5rem;
 }
 
+.eggy {
+    z-index: 99999;
+}
+
 .navbar {
     background: var(--white);
     border: 1px solid var(--border);

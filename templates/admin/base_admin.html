@@ -7,6 +7,27 @@
     <link rel="icon" type="image/png" href="{{ url_for('static', filename='images/icon.png') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
     {% block extra_css %}{% endblock %}
+<script type="module">
+    import { Eggy } from "{{ url_for('static', filename='js/eggy.js') }}";
+    const FLASH_DURATION = 5000;
+    const FLASH_TYPE = { success: 'success', danger: 'error', error: 'error', warning: 'warning', info: 'info' };
+    const FLASH_TITLE = { success: 'انجام شد', danger: 'خطا', error: 'خطا', warning: 'توجه', info: 'اطلاع' };
+    document.addEventListener('DOMContentLoaded', function () {
+        document.querySelectorAll('[data-flash]').forEach(function (el) {
+            const category = el.dataset.type || 'info';
+            const div = document.createElement('div');
+            div.textContent = el.textContent.replace('×', '').trim();
+            Eggy({
+                type: FLASH_TYPE[category] || 'info',
+                title: FLASH_TITLE[category] || FLASH_TITLE.info,
+                message: div.innerHTML,
+                duration: FLASH_DURATION,
+                position: 'bottom-right'
+            });
+            el.remove();
+        });
+    });
+</script>
 </head>
 <body>
     <header class="header admin-header">
@@ -33,13 +54,13 @@
     <main class="main">
         {% with messages = get_flashed_messages(with_categories=true) %}
             {% if messages %}
-            <div class="container">
-            {% for cat, msg in messages %}
-                <div class="alert alert-{{ cat }}">
+            <div class="container flash-container" id="flashContainer">
+                {% for cat, msg in messages %}
+                <div class="alert alert-{{ cat }}" data-flash data-type="{{ cat }}">
                     {{ msg }}
                     <button class="alert-close" onclick="this.parentElement.remove()">×</button>
                 </div>
-            {% endfor %}
+                {% endfor %}
             </div>
             {% endif %}
         {% endwith %}
