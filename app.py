@@ -1,5 +1,6 @@
 import re
 import uuid
+from datetime import timedelta
 from functools import wraps
 from pathlib import Path
 
@@ -40,6 +41,8 @@ def create_app():
     app.config['SECRET_KEY'] = SECRET_KEY
     app.config['SQLALCHEMY_DATABASE_URI'] = SQLALCHEMY_DATABASE_URI
     app.config['UPLOAD_FOLDER'] = str(Path(app.root_path) / 'static' / 'images')
+    app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(days=90)
+    app.config['SESSION_REFRESH_EACH_REQUEST'] = True
 
     db.init_app(app)
     csrf.init_app(app)
@@ -480,7 +483,7 @@ def create_app():
             user = User.query.filter_by(username=(request.form.get('username') or '').strip()).first()
             if user and user.check_password(request.form.get('password', '')):
                 session['user_id'] = user.id
-                session.modified = True
+                session.permanent = True
                 flash('ورود موفقیت آمیز بود', 'success')
                 return redirect(url_for('profile'))
             flash('نام کاربری یا رمز عبور اشتباه است', 'danger')
@@ -531,7 +534,7 @@ def create_app():
             password = request.form.get('password')
             if username == ADMIN_USERNAME and password == ADMIN_PASSWORD:
                 session['admin_id'] = 1
-                session.modified = True
+                session.permanent = True
                 flash('ورود موفقیت آمیز بود', 'success')
                 return redirect(url_for('admin_dashboard'))
             flash('نام کاربری یا رمز عبور اشتباه است', 'danger')
