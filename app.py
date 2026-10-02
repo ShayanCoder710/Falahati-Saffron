@@ -4,11 +4,16 @@ import os
 import secrets
 
 from flask import Flask, abort, flash, redirect, render_template, request, session, url_for
-from sqlalchemy import func, or_
+from sqlalchemy import func
 
 from config import *
 from extensions import db, csrf
-from func import FOOTER_FIELDS, about_content, best_discount, data_html, discount_price, escape_html, footer_values, hash_password, is_valid_phone, save_about_content, save_footer_values, verify_password
+from func import (
+    FOOTER_FIELDS, about_content, best_discount, change_stock, data_html, discount_price,
+    escape_html, fa_date, fa_digits, fa_num, footer_values, get_cart, get_cart_details,
+    get_user_orders, hash_password, is_valid_phone, order_stock_available, parse_int,
+    parse_number, save_about_content, save_footer_values, search_products, verify_password,
+)
 from models.models import AboutContent, Discount, FooterContent, Order, OrderItem, Product, User
 
 STATUS_LABELS = {
@@ -68,77 +73,6 @@ def create_app():
         if os.path.isfile(target):
             os.remove(target)
 
-    def parse_int(raw, default=None):
-        value = (raw or '').strip()
-        if not value:
-            return default
-        try:
-            return int(value)
-        except ValueError:
-            return None
-
-    def parse_number(form, field, default=None):
-        raw = (form.get(field) or '').strip()
-        if not raw:
-            return default
-        try:
-            return float(raw)
-        except ValueError:
-            return None
-
-    def search_products(keyword):
-        if not keyword:
-            return Product.query.all()
-        like = f'%{keyword}%'
-        return Product.query.filter(or_(
-            Product.name.like(like),
-            Product.description.like(like),
-            Product.category.like(like),
-            Product.code.like(like),
-        )).all()
-
-    def get_cart():
-        if 'cart' not in session:
-            session['cart'] = []
-            session.modified = True
-        return session['cart']
-
-    def get_cart_details():
-        details, total = [], 0
-        for entry in get_cart():
-            product = db.session.get(Product, entry['product_id'])
-            if not product:
-                continue
-            quantity = min(int(entry['quantity']), product.stock or 0)
-            discount = best_discount(product.id, quantity)
-            unit_price = discount_price(discount, quantity, product.price) if discount else float(product.price)
-            details.append({
-                'product': product,
-                'quantity': quantity,
-                'max_qty': product.stock or 0,
-                'unit_price': unit_price,
-                'discount': discount,
-                'saved': round(float(product.price) - unit_price, 2) * quantity,
-            })
-            total += unit_price * quantity
-        return details, total
-
-    def get_user_orders(user_id):
-        orders = []
-        for order in Order.query.filter_by(user_id=user_id).order_by(Order.created_at.desc()).all():
-            lines = [
-                f'{item.product.name if item.product else f"محصول #{item.product_id}"} × {item.quantity}'
-                for item in order.items
-            ]
-            orders.append({
-                'id': order.id,
-                'total': order.total_price,
-                'status': order.status,
-                'created_at': order.created_at,
-                'lines': lines,
-            })
-        return orders
-
     @app.context_processor
     def inject_footer():
         return {'footer': footer_values()}
@@ -152,25 +86,9 @@ def create_app():
             'cart_count': sum(int(i.get('quantity', 0)) for i in cart),
         }
 
-    @app.template_filter('fa_num')
-    def fa_num(value, decimals=0):
-        try:
-            text = f'{float(value):,.{decimals}f}'
-        except (TypeError, ValueError):
-            text = str(value)
-        return text.translate(str.maketrans('0123456789,', '۰۱۲۳۴۵۶۷۸۹٬'))
-
-    @app.template_filter('fa_digits')
-    def fa_digits(value):
-        if value is None:
-            return ''
-        return str(value).translate(str.maketrans('0123456789', '۰۱۲۳۴۵۶۷۸۹'))
-
-    @app.template_filter('fa_date')
-    def fa_date(value, fmt='%Y/%m/%d'):
-        if not value:
-            return '-'
-        return fa_digits(value.strftime(fmt))
+    app.template_filter('fa_num')(fa_num)
+    app.template_filter('fa_digits')(fa_digits)
+    app.template_filter('fa_date')(fa_date)
 
     @app.route('/')
     def home():
@@ -303,18 +221,6 @@ def create_app():
             details, total = get_cart_details()
             return data_html(ok=True, total=total, count=sum(i['quantity'] for i in details))
         return redirect(url_for('cart'))
-
-    def order_stock_available(order):
-        db.session.expire_all()
-        return all(
-            (item.product.stock or 0) >= item.quantity
-            for item in order.items
-        )
-
-    def change_stock(order, amount):
-        for item in order.items:
-            if item.product:
-                item.product.stock = (item.product.stock or 0) + amount * item.quantity
 
     def cancel_order(order, message):
         order.status = 'cancelled'
@@ -563,8 +469,8 @@ def create_app():
             return redirect(url_for('admin_login'))
         if request.method == 'POST':
             name = (request.form.get('name') or '').strip()
-            price = parse_number(request.form, 'price')
-            stock = parse_number(request.form, 'stock', 0)
+            price = parse_number(request.form.get('price'))
+            stock = parse_number(request.form.get('stock'), 0)
             if not name or not price or price < 0:
                 flash('نام و قیمت محصول الزامی است', 'danger')
                 return render_template('admin/product_form.html')

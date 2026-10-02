@@ -1,9 +1,11 @@
 import hashlib
 import secrets
 
+from flask import session
+from sqlalchemy import or_
 
 from extensions import db
-from models.models import AboutContent, Discount, FooterContent
+from models.models import AboutContent, Discount, FooterContent, Order, Product
 
 FOOTER_FIELDS = {
     'brand_name': 'زعفران فلاحتی',
@@ -98,3 +100,111 @@ def escape_html(value):
 def data_html(**values):
     pairs = [f'data-{key.replace("_", "-")}="{escape_html(value)}"' for key, value in values.items()]
     return '<div ' + ' '.join(pairs) + '></div>'
+
+
+def parse_int(raw, default=None):
+    value = (raw or '').strip()
+    if not value:
+        return default
+    try:
+        return int(value)
+    except ValueError:
+        return None
+
+
+def parse_number(raw, default=None):
+    value = (raw or '').strip()
+    if not value:
+        return default
+    try:
+        return float(value)
+    except ValueError:
+        return None
+
+
+def search_products(keyword):
+    if not keyword:
+        return Product.query.all()
+    like = f'%{keyword}%'
+    return Product.query.filter(or_(
+        Product.name.like(like),
+        Product.description.like(like),
+        Product.category.like(like),
+        Product.code.like(like),
+    )).all()
+
+
+def get_cart():
+    if 'cart' not in session:
+        session['cart'] = []
+        session.modified = True
+    return session['cart']
+
+
+def get_cart_details():
+    details, total = [], 0
+    for entry in get_cart():
+        product = db.session.get(Product, entry['product_id'])
+        if not product:
+            continue
+        quantity = min(int(entry['quantity']), product.stock or 0)
+        discount = best_discount(product.id, quantity)
+        unit_price = discount_price(discount, quantity, product.price) if discount else float(product.price)
+        details.append({
+            'product': product,
+            'quantity': quantity,
+            'max_qty': product.stock or 0,
+            'unit_price': unit_price,
+            'discount': discount,
+            'saved': round(float(product.price) - unit_price, 2) * quantity,
+        })
+        total += unit_price * quantity
+    return details, total
+
+
+def get_user_orders(user_id):
+    orders = []
+    for order in Order.query.filter_by(user_id=user_id).order_by(Order.created_at.desc()).all():
+        lines = [
+            f'{item.product.name if item.product else f"محصول #{item.product_id}"} × {item.quantity}'
+            for item in order.items
+        ]
+        orders.append({
+            'id': order.id,
+            'total': order.total_price,
+            'status': order.status,
+            'created_at': order.created_at,
+            'lines': lines,
+        })
+    return orders
+
+
+def order_stock_available(order):
+    db.session.expire_all()
+    return all((item.product.stock or 0) >= item.quantity for item in order.items)
+
+
+def change_stock(order, amount):
+    for item in order.items:
+        if item.product:
+            item.product.stock = (item.product.stock or 0) + amount * item.quantity
+
+
+def fa_num(value, decimals=0):
+    try:
+        text = f'{float(value):,.{decimals}f}'
+    except (TypeError, ValueError):
+        text = str(value)
+    return text.translate(str.maketrans('0123456789,', '۰۱۲۳۴۵۶۷۸۹٬'))
+
+
+def fa_digits(value):
+    if value is None:
+        return ''
+    return str(value).translate(str.maketrans('0123456789', '۰۱۲۳۴۵۶۷۸۹'))
+
+
+def fa_date(value, fmt='%Y/%m/%d'):
+    if not value:
+        return '-'
+    return fa_digits(value.strftime(fmt))
