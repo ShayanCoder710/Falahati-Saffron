@@ -1,0 +1,7 @@
+__pycache__/
+models/_pycache__/
+.venv/
+static/images/[0-9a-f]*.jpg
+static/images/[0-9a-f]*.jpeg
+static/images/[0-9a-f]*.png
+static/images/[0-9a-f]*.webp

@@ -31,12 +31,23 @@
         </div>
         <div class="form-group">
             <label for="image">عکس محصول</label>
-            {% if product and product.image %}
-                <div class="current-image-preview" style="margin-bottom:.8rem;">
-                    <img src="{{ url_for('static', filename='images/' + product.image) }}" alt="" style="width:120px;height:120px;object-fit:cover;border-radius:var(--radius);">
+            <div class="image-upload">
+                <div class="image-upload-preview" id="imagePreview">
+                    {% if product and product.image %}
+                        <img src="{{ url_for('static', filename='images/' + product.image) }}" alt="">
+                    {% else %}
+                        <span class="image-upload-hint">پیش‌نمایش</span>
+                    {% endif %}
                 </div>
-            {% endif %}
-            <input type="file" id="image" name="image" accept="image/*">
+                <div class="image-upload-body">
+                    <div class="image-upload-row">
+                        <button type="button" class="image-upload-btn" id="imagePick">انتخاب عکس محصول</button>
+                        <span class="image-upload-file" id="imageName">فایلی انتخاب نشده است</span>
+                    </div>
+                    <input type="file" id="image" name="image" accept="image/png,image/jpeg,image/webp,image/gif">
+                    <small class="image-upload-note">فرمت‌های مجاز: PNG، JPG، WEBP، GIF — حداکثر ۵ مگابایت</small>
+                </div>
+            </div>
         </div>
         <div class="form-actions">
             <button type="submit" class="btn btn-primary">{% if product %}به‌روزرسانی{% else %}افزودن محصول{% endif %}</button>
@@ -90,4 +101,46 @@
     </div>
     {% endif %}
 </div>
+<script>
+(function(){
+    var input = document.getElementById('image');
+    var preview = document.getElementById('imagePreview');
+    var note = document.querySelector('.image-upload-note');
+    var pick = document.getElementById('imagePick');
+    var nameEl = document.getElementById('imageName');
+    var faNum = function(n){ return n.toString().replace(/\d/g, function(d){ return '۰۱۲۳۴۵۶۷۸۹'[d]; }); };
+
+    pick.addEventListener('click', function(){ input.click(); });
+
+    input.addEventListener('change', function(){
+        var file = input.files && input.files[0];
+        if (!file) {
+            preview.innerHTML = '<span class="image-upload-hint">پیش‌نمایش</span>';
+            nameEl.textContent = 'فایلی انتخاب نشده است';
+            nameEl.classList.remove('has-file');
+            pick.textContent = 'انتخاب عکس محصول';
+            return;
+        }
+        var mb = file.size / 1048576;
+        if (mb > 5) {
+            alert('حجم فایل بیشتر از ۵ مگابایت است.');
+            input.value = '';
+            return;
+        }
+        var reader = new FileReader();
+        reader.onload = function(e){
+            preview.innerHTML = '';
+            var img = document.createElement('img');
+            img.src = e.target.result;
+            img.alt = '';
+            preview.appendChild(img);
+        };
+        reader.readAsDataURL(file);
+        nameEl.textContent = file.name;
+        nameEl.classList.add('has-file');
+        pick.textContent = 'تغییر عکس';
+        note.textContent = 'حجم فایل: ' + faNum(mb.toFixed(1)) + ' مگابایت';
+    });
+})();
+</script>
 {% endblock %}

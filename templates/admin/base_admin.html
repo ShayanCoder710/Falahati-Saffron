@@ -23,8 +23,8 @@
                     <li><a href="{{ url_for('admin_users') }}">کاربران</a></li>
                     <li><a href="{{ url_for('admin_about') }}">درباره ما</a></li>
                     <li><a href="{{ url_for('admin_footer') }}">فوتر</a></li>
-                    <li><a href="{{ url_for('home') }}">مشاهده سایت</a></li>
-                    <li><a href="{{ url_for('admin_logout') }}">خروج</a></li>
+                    <li><a href="{{ url_for('home') }}" class="nav-account">مشاهده سایت</a></li>
+                    <li><a href="{{ url_for('admin_logout') }}" class="nav-logout">خروج</a></li>
                 </ul>
             </div>
         </nav>
@@ -76,8 +76,7 @@
                 menu.querySelectorAll('a').forEach(function(a){
                     var href = a.getAttribute('href');
                     if (href === path || (href.length > 7 && path.indexOf(href) === 0)) {
-                        a.parentElement.classList.add('admin-active');
-                        a.classList.add('active-admin');
+                        a.classList.add('is-current');
                     }
                 });
             }
