@@ -9,7 +9,7 @@ from sqlalchemy import func
 from config import *
 from extensions import db, csrf
 from func import *
-from models.models import Discount, Order, OrderItem, Product, User
+from models.models import Coupon, Discount, Order, OrderItem, Product, User
 
 STATUS_LABELS = {
     'pending': 'در انتظار پرداخت',
@@ -80,6 +80,7 @@ def create_app():
         return {
             'status_labels': STATUS_LABELS,
             'status_icons': STATUS_ICONS,
+            'active_coupon': active_coupon(),
             'cart_count': sum(int(i.get('quantity', 0)) for i in cart),
         }
 
@@ -201,13 +202,16 @@ def create_app():
         if is_ajax:
             details, total = get_cart_details()
             current = None if removed or not stock else max(1, min(requested, stock))
-            discount = best_discount(pid, current) if current else None
-            unit_price = discount_price(discount, current, product.price) if discount else (float(product.price) if product else 0)
+            if product and current:
+                unit_price, percent = unit_price_for(
+                    product, current, active_coupon().percent if active_coupon() else 0)
+            else:
+                unit_price, percent = 0, 0
             return data_html(
                 ok=True, removed=removed, total=total, quantity=current,
                 count=sum(i['quantity'] for i in details),
                 unit_price=unit_price,
-                percent=discount.percent if discount else 0,
+                percent=percent,
             )
         return redirect(url_for('cart'))
 
@@ -221,8 +225,24 @@ def create_app():
             return data_html(ok=True, total=total, count=sum(i['quantity'] for i in details))
         return redirect(url_for('cart'))
 
+    @app.route('/coupon/apply', methods=['POST'])
+    def coupon_apply():
+        coupon, blocked = set_coupon(request.form.get('code'))
+        if blocked:
+            flash(blocked, 'danger')
+        else:
+            flash(f'کد تخفیف {coupon.percent}٪ اعمال شد', 'success')
+        return redirect(request.form.get('next') or url_for('cart'))
+
+    @app.route('/coupon/remove', methods=['POST'])
+    def coupon_remove():
+        clear_coupon()
+        flash('کد تخفیف حذف شد', 'info')
+        return redirect(request.form.get('next') or url_for('cart'))
+
     def cancel_order(order, message):
         order.status = 'cancelled'
+        release_coupon(order)
         db.session.commit()
         flash(message, 'danger')
         return redirect(url_for('home'))
@@ -235,10 +255,17 @@ def create_app():
             flash('سبد خرید خالی است', 'danger')
             return redirect(url_for('cart'))
         details, total = get_cart_details()
+        if not details:
+            clear_coupon()
+            session.pop('cart', None)
+            session.modified = True
+            flash('سبد خرید شما خالی است', 'danger')
+            return redirect(url_for('cart'))
         user = db.session.get(User, session['user_id'])
         if user is None:
             session.pop('user_id', None)
             return redirect(url_for('user_login'))
+        coupon = active_coupon()
         if request.method != 'POST':
             return render_template('checkout.html', items=details, total=total, user=user)
         name = (request.form.get('name') or '').strip()
@@ -262,6 +289,7 @@ def create_app():
                 total_price=total,
                 status='pending',
                 payment_ref=secrets.token_hex(16),
+                coupon_code=coupon.code if coupon else None,
             )
             db.session.add(order)
             db.session.flush()
@@ -310,8 +338,10 @@ def create_app():
         if not order_stock_available(order):
             return cancel_order(order, 'موجودی برخی اقلام کافی نیست و سفارش لغو شد')
         order.status = 'paid'
+        consume_coupon(order)
         change_stock(order, -1)
         db.session.commit()
+        clear_coupon()
         flash('پرداخت با موفقیت انجام شد', 'success')
         return redirect(url_for('order_success', oid=order.id))
 
@@ -640,6 +670,52 @@ def create_app():
         db.session.commit()
         flash('تخفیف سراسری حذف شد', 'success')
         return redirect(url_for('admin_discounts'))
+
+    @app.route('/admin/coupons')
+    def admin_coupons():
+        if 'admin_id' not in session:
+            return redirect(url_for('admin_login'))
+        return render_template('admin/coupons.html', coupons=Coupon.query.order_by(Coupon.id.desc()).all())
+
+    @app.route('/admin/coupons/add', methods=['POST'])
+    def admin_coupon_add():
+        if 'admin_id' not in session:
+            return redirect(url_for('admin_login'))
+        code = normalize_coupon(request.form.get('code'))
+        percent = parse_int(request.form.get('percent'))
+        expires = parse_coupon_date(request.form.get('expires_at'))
+        max_uses = parse_int(request.form.get('max_uses'))
+        if not code:
+            flash('کد تخفیف الزامی است', 'danger')
+            return redirect(url_for('admin_coupons'))
+        if Coupon.query.filter_by(code=code).first():
+            flash('این کد تخفیف قبلاً ثبت شده است', 'danger')
+            return redirect(url_for('admin_coupons'))
+        if percent is None or not 0 < percent <= 90:
+            flash('درصد تخفیف باید بین ۱ تا ۹۰ باشد', 'danger')
+            return redirect(url_for('admin_coupons'))
+        if expires is None:
+            flash('تاریخ انقضا را به شکل ۲۰۲۶-۱۲-۳۱ وارد کنید', 'danger')
+            return redirect(url_for('admin_coupons'))
+        if max_uses is not None and max_uses < 1:
+            flash('سقف استفاده باید عدد مثبت باشد', 'danger')
+            return redirect(url_for('admin_coupons'))
+        db.session.add(Coupon(code=code, percent=percent, expires_at=expires, max_uses=max_uses))
+        db.session.commit()
+        flash(f'کد تخفیف {code} با {percent}٪ ثبت شد', 'success')
+        return redirect(url_for('admin_coupons'))
+
+    @app.route('/admin/coupons/<int:cid>/delete', methods=['POST'])
+    def admin_coupon_delete(cid):
+        if 'admin_id' not in session:
+            return redirect(url_for('admin_login'))
+        coupon = db.session.get(Coupon, cid)
+        if coupon is None:
+            abort(404)
+        db.session.delete(coupon)
+        db.session.commit()
+        flash('کد تخفیف حذف شد', 'success')
+        return redirect(url_for('admin_coupons'))
 
     @app.route('/admin/orders')
     def admin_orders():

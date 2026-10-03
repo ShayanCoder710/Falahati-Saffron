@@ -31,6 +31,7 @@ class Order(db.Model):
     total_price = db.Column(db.Numeric(10, 2), nullable=False)
     status = db.Column(db.String(50), default='pending')
     payment_ref = db.Column(db.String(100), nullable=True)
+    coupon_code = db.Column(db.String(50), nullable=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
     items = db.relationship('OrderItem', backref='order', lazy='select', cascade='all, delete-orphan')
@@ -71,6 +72,18 @@ class Discount(db.Model):
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
     product = db.relationship('Product', backref=db.backref('discounts', lazy='select', cascade='all, delete-orphan'))
+
+
+class Coupon(db.Model):
+    __tablename__ = 'coupon'
+
+    id = db.Column(db.Integer, primary_key=True)
+    code = db.Column(db.String(50), unique=True, nullable=False)
+    percent = db.Column(db.Integer, nullable=False, default=0)
+    expires_at = db.Column(db.DateTime, nullable=False)
+    max_uses = db.Column(db.Integer, nullable=True)
+    used_count = db.Column(db.Integer, nullable=False, default=0)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
 
 class AboutContent(db.Model):

@@ -1,11 +1,13 @@
 import hashlib
 import secrets
 
+from datetime import datetime
+
 from flask import session
 from sqlalchemy import or_
 
 from extensions import db
-from models.models import AboutContent, Discount, FooterContent, Order, Product
+from models.models import AboutContent, Coupon, Discount, FooterContent, Order, Product
 
 FOOTER_FIELDS = {
     'brand_name': 'زعفران فلاحتی',
@@ -58,6 +60,83 @@ def best_discount(product_id, quantity):
         )).all()
     matches = [d for d in candidates if discount_applies(d, quantity)]
     return max(matches, key=lambda d: d.percent) if matches else None
+
+
+def normalize_coupon(raw):
+    return (raw or '').strip().upper()
+
+
+def parse_coupon_date(raw):
+    parts = (raw or '').strip().split('-')
+    if len(parts) != 3:
+        return None
+    try:
+        year, month, day = int(parts[0]), int(parts[1]), int(parts[2])
+        return datetime(year, month, day, 23, 59, 59)
+    except ValueError:
+        return None
+
+
+def coupon_blocked(coupon):
+    if coupon is None:
+        return 'کد تخفیف یافت نشد'
+    if coupon.expires_at and coupon.expires_at < datetime.utcnow():
+        return 'اعتبار این کد تخفیف به پایان رسیده است'
+    if coupon.max_uses is not None and coupon.used_count >= coupon.max_uses:
+        return 'سقف استفاده از این کد تخفیف تکمیل شده است'
+    return None
+
+
+def find_coupon(raw):
+    code = normalize_coupon(raw)
+    if not code:
+        return None
+    return Coupon.query.filter_by(code=code).first()
+
+
+def active_coupon():
+    coupon = find_coupon(session.get('coupon'))
+    return None if coupon_blocked(coupon) else coupon
+
+
+def set_coupon(raw):
+    coupon = find_coupon(raw)
+    blocked = coupon_blocked(coupon)
+    if blocked:
+        clear_coupon()
+        return None, blocked
+    session['coupon'] = coupon.code
+    session.modified = True
+    return coupon, None
+
+
+def clear_coupon():
+    session.pop('coupon', None)
+    session.modified = True
+
+
+def consume_coupon(order):
+    coupon = find_coupon(order.coupon_code)
+    if coupon is None:
+        return
+    coupon.used_count = (coupon.used_count or 0) + 1
+
+
+def release_coupon(order):
+    coupon = find_coupon(order.coupon_code)
+    if coupon is None or not coupon.used_count:
+        return
+    coupon.used_count -= 1
+
+
+def unit_price_for(product, quantity, coupon_percent=0):
+    discount = best_discount(product.id, quantity)
+    base = float(product.price)
+    tier_percent = discount.percent if discount else 0
+    winner = max(tier_percent, coupon_percent)
+    if winner == 0:
+        return base, None
+    return round(base * (100 - winner) / 100, 2), winner
 
 
 def about_content():
@@ -147,6 +226,8 @@ def get_cart():
 
 def get_cart_details():
     details, total = [], 0
+    coupon = active_coupon()
+    coupon_percent = coupon.percent if coupon else 0
     for entry in get_cart():
         product = db.session.get(Product, entry['product_id'])
         if not product:
@@ -155,13 +236,15 @@ def get_cart_details():
         if quantity < 1:
             continue
         discount = best_discount(product.id, quantity)
-        unit_price = discount_price(discount, quantity, product.price) if discount else float(product.price)
+        unit_price, winner = unit_price_for(product, quantity, coupon_percent)
         details.append({
             'product': product,
             'quantity': quantity,
             'max_qty': product.stock or 0,
             'unit_price': unit_price,
             'discount': discount,
+            'coupon': coupon,
+            'winner_percent': winner,
             'saved': round(float(product.price) - unit_price, 2) * quantity,
         })
         total += unit_price * quantity

@@ -17,11 +17,11 @@
                     </div>
                     <div class="cart-item-info">
                         <h3>{{ item.product.name }}</h3>
-                        {% if item.discount %}
+                        {% if item.winner_percent %}
                         <p class="price price--discounted">
                             <span class="price-old">{{ item.product.price | fa_num }}</span>
                             <span class="price-new">{{ item.unit_price | fa_num }}</span>
-                            <span class="price-badge">{{ item.discount.percent | fa_num }}٪ تخفیف</span>
+                            <span class="price-badge">{{ item.winner_percent | fa_num }}٪ تخفیف</span>
                         </p>
                         {% else %}
                         <p class="price">{{ item.unit_price | fa_num }} تومان</p>
@@ -101,6 +101,24 @@
         <div class="cart-summary" id="cartSummary"{% if not items %} style="display:none"{% endif %}>
             <h2>جمع کل</h2>
             <p class="total-price" id="cartTotal">{{ total | fa_num }} تومان</p>
+            <form method="POST" action="{{ url_for('coupon_apply') }}" class="coupon-form">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <input type="hidden" name="next" value="{{ url_for('cart') }}">
+                {% if active_coupon %}
+                <div class="coupon-applied">
+                    <span>کد تخفیف {{ active_coupon.code }} ({{ active_coupon.percent | fa_num }}٪)</span>
+                </div>
+                {% endif %}
+                <div class="coupon-row">
+                    <input type="text" name="code" placeholder="کد تخفیف خود را وارد کنید" dir="ltr" {% if active_coupon %}value="{{ active_coupon.code }}"{% endif %}>
+                    {% if active_coupon %}
+                    <button type="submit" class="btn btn-secondary btn-sm" formaction="{{ url_for('coupon_remove') }}">حذف</button>
+                    <button type="submit" class="btn btn-primary btn-sm">اعمال</button>
+                    {% else %}
+                    <button type="submit" class="btn btn-primary btn-sm">اعمال</button>
+                    {% endif %}
+                </div>
+            </form>
             <a href="{{ url_for('checkout') }}" class="btn btn-primary btn-block">ادامه خرید</a>
             <a href="{{ url_for('home') }}" class="btn btn-secondary btn-block">بازگشت</a>
         </div>

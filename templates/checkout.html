@@ -10,7 +10,7 @@
             <div class="summary-item">
                 <span>{{ item.product.name }} × {{ item.quantity | fa_num }}</span>
                 <span>
-                    {% if item.discount %}<s>{{ (item.product.price * item.quantity) | fa_num }}</s>{% endif %}
+                    {% if item.winner_percent %}<s>{{ (item.product.price * item.quantity) | fa_num }}</s>{% endif %}
                     {{ (item.unit_price * item.quantity) | fa_num }} تومان
                 </span>
             </div>
@@ -19,6 +19,24 @@
                 <span>جمع کل</span>
                 <span>{{ total | fa_num }} تومان</span>
             </div>
+            <form method="POST" action="{{ url_for('coupon_apply') }}" class="coupon-form">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <input type="hidden" name="next" value="{{ url_for('checkout') }}">
+                {% if active_coupon %}
+                <div class="coupon-applied">
+                    <span>کد تخفیف {{ active_coupon.code }} ({{ active_coupon.percent | fa_num }}٪)</span>
+                </div>
+                {% endif %}
+                <div class="coupon-row">
+                    <input type="text" name="code" placeholder="کد تخفیف خود را وارد کنید" dir="ltr" {% if active_coupon %}value="{{ active_coupon.code }}"{% endif %}>
+                    {% if active_coupon %}
+                    <button type="submit" class="btn btn-secondary btn-sm" formaction="{{ url_for('coupon_remove') }}">حذف</button>
+                    <button type="submit" class="btn btn-primary btn-sm">اعمال</button>
+                    {% else %}
+                    <button type="submit" class="btn btn-primary btn-sm">اعمال</button>
+                    {% endif %}
+                </div>
+            </form>
         </div>
         <form method="POST" class="checkout-form">
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">

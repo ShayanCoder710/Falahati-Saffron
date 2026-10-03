@@ -2122,9 +2122,50 @@ code {
     margin-bottom: 0;
 }
 
+.discount-fields--four {
+    grid-template-columns: repeat(4, 1fr);
+}
+
+.coupon-form {
+    margin: 1rem 0;
+}
+
+.coupon-applied {
+    display: flex;
+    align-items: center;
+    gap: .4rem;
+    padding: .5rem .7rem;
+    margin-bottom: .6rem;
+    background: var(--green-soft);
+    color: var(--green);
+    border: 1px solid rgba(21, 128, 61, .16);
+    border-radius: var(--radius-sm);
+    font-size: .86rem;
+    font-weight: 600;
+}
+
+.coupon-row {
+    display: flex;
+    gap: .5rem;
+}
+
+.coupon-row input {
+    flex: 1;
+    min-width: 0;
+}
+
+.coupon-row .btn {
+    flex-shrink: 0;
+}
+
 @media (max-width: 640px) {
-    .discount-fields {
+    .discount-fields,
+    .discount-fields--four {
         grid-template-columns: 1fr;
+    }
+
+    .coupon-row {
+        flex-direction: column;
     }
 
     .discount-row {
@@ -3144,6 +3185,14 @@ a.footer-contact-item:hover {
 
     .nav-menu.active li:nth-child(8) {
         transition-delay: .34s;
+    }
+
+    .nav-menu.active li:nth-child(9) {
+        transition-delay: .38s;
+    }
+
+    .nav-menu.active li:nth-child(10) {
+        transition-delay: .42s;
     }
 
     .nav-menu li {

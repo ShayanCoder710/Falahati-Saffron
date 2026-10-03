@@ -1,0 +1,63 @@
+{% extends "admin/base_admin.html" %}
+{% block title %}مدیریت کدهای تخفیف - زعفران فلاحتی{% endblock %}
+{% block content %}
+<div class="container">
+    <div class="about-admin-wrap">
+        <div class="about-admin-hero">
+            <div class="about-admin-hero-icon"><img src="{{ url_for('static', filename='images/icon.png') }}" alt=""></div>
+            <h1>مدیریت کدهای تخفیف</h1>
+            <p>کاربر می‌تواند هنگام خرید کد تخفیف را وارد کند؛ بیشترین درصد اعمال می‌شود</p>
+        </div>
+        <div class="about-admin-card">
+            <div class="about-admin-card-head">
+                <h3>کدهای تخفیف فعال</h3>
+                <p>کد تا پایان تاریخ انقضا و سقف استفاده قابل استفاده است</p>
+            </div>
+            {% if coupons %}
+            <div class="discount-list">
+                {% for c in coupons %}
+                <div class="discount-row">
+                    <div class="discount-info">
+                        <span class="discount-percent">{{ c.percent | fa_num }}٪</span>
+                        <span class="discount-range">{{ c.code }}</span>
+                        <span class="discount-range">انقضا: {{ c.expires_at | fa_date }}</span>
+                        <span class="discount-range">{% if c.max_uses %}{{ c.used_count | fa_num }} از {{ c.max_uses | fa_num }} استفاده{% else %}بدون سقف استفاده{% endif %}</span>
+                    </div>
+                    <form method="POST" action="{{ url_for('admin_coupon_delete', cid=c.id) }}">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        <button type="submit" class="btn btn-danger btn-sm">حذف</button>
+                    </form>
+                </div>
+                {% endfor %}
+            </div>
+            {% else %}
+            <p class="no-discounts">کد تخفیفی ثبت نشده است.</p>
+            {% endif %}
+            <form method="POST" action="{{ url_for('admin_coupon_add') }}" class="discount-add-form">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <div class="discount-fields discount-fields--four">
+                    <div class="form-group">
+                        <label for="code">کد تخفیف</label>
+                        <input type="text" id="code" name="code" placeholder="مثلاً SAFFRON20" dir="ltr">
+                    </div>
+                    <div class="form-group">
+                        <label for="percent">درصد تخفیف (۱ تا ۹۰)</label>
+                        <input type="number" id="percent" name="percent" min="1" max="90" placeholder="مثلاً ۲۰">
+                    </div>
+                    <div class="form-group">
+                        <label for="expires_at">تاریخ انقضا</label>
+                        <input type="text" id="expires_at" name="expires_at" placeholder="۲۰۲۶-۱۲-۳۱" dir="ltr">
+                    </div>
+                    <div class="form-group">
+                        <label for="max_uses">سقف استفاده (خالی = نامحدود)</label>
+                        <input type="number" id="max_uses" name="max_uses" min="1" placeholder="خالی بگذارید">
+                    </div>
+                </div>
+                <div class="form-actions">
+                    <button type="submit" class="btn btn-primary">افزودن کد تخفیف</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
