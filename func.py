@@ -6,8 +6,42 @@ from datetime import date, datetime
 from flask import session
 from sqlalchemy import or_
 
+import re
+
 from extensions import db
 from models.models import AboutContent, Coupon, Discount, FooterContent, Order, Product
+
+ALLOWED_TAGS = {
+    'p', 'br', 'b', 'strong', 'i', 'em', 'u', 'ul', 'ol', 'li', 'h1', 'h2',
+    'h3', 'h4', 'blockquote', 'a', 'span', 'div', 'hr',
+}
+
+
+def strip_dangerous_html(text):
+    cleaned = re.sub(r'(?is)<\s*(script|style|iframe|object|embed|link|meta)'
+                     r'[^>]*>.*?<\s*/\s*\1\s*>', '', text or '')
+    cleaned = re.sub(r'(?is)<\s*(script|style|iframe|object|embed|link|meta)'
+                     r'[^>]*/?>', '', cleaned)
+
+    def clean_tag(match):
+        tag = match.group(0)
+        tag = re.sub(r'(?is)\s+on[a-z]+\s*=\s*("[^"]*"|\'[^\']*\'|[^\s>]+)',
+                     '', tag)
+        tag = re.sub(r'(?is)\s+(href|src)\s*=\s*("javascript:[^"]*"'
+                     r"|'javascript:[^']*'|javascript:[^\s>]+)", '', tag)
+        return tag
+
+    cleaned = re.sub(r'(?is)<[^>]+>', clean_tag, cleaned)
+
+    def filter_tag(match):
+        name = match.group(2).lower()
+        if name not in ALLOWED_TAGS:
+            return ''
+        return match.group(0)
+
+    cleaned = re.sub(r'(?is)<\s*(/?)\s*([a-z0-9]+)(?=[\s/>])[^>]*>',
+                     filter_tag, cleaned)
+    return cleaned
 
 FOOTER_FIELDS = {
     'brand_name': 'زعفران فلاحتی',
@@ -232,8 +266,9 @@ def about_content():
 
 
 def save_about_content(content):
-    instance = AboutContent.query.first() or AboutContent(content=content)
-    instance.content = content
+    safe = strip_dangerous_html(content)
+    instance = AboutContent.query.first() or AboutContent(content=safe)
+    instance.content = safe
     db.session.add(instance)
     db.session.commit()
 
@@ -307,6 +342,15 @@ def parse_number(raw, default=None):
 def clean_text(raw, maximum):
     value = (raw or '').strip()
     if len(value) > maximum:
+        return None
+    return value
+
+
+def optional_text(raw, maximum):
+    value = clean_text(raw, maximum)
+    if not value:
+        return None
+    if value.lower() in ('none', 'null', 'undefined', 'nan', 'false'):
         return None
     return value
 

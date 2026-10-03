@@ -560,12 +560,12 @@ def create_app():
                 flash(INVALID_NUMBER, 'danger')
                 return render_template('admin/product_form.html')
             product = Product(
-                code=clean_text(request.form.get('code'), 100),
+                code=optional_text(request.form.get('code'), 100),
                 name=name,
-                description=clean_text(request.form.get('description'), 5000),
+                description=optional_text(request.form.get('description'), 5000),
                 price=price,
                 stock=stock,
-                category=clean_text(request.form.get('category'), 100),
+                category=optional_text(request.form.get('category'), 100),
                 image=save_product_image(request.files.get('image')),
             )
             db.session.add(product)
@@ -585,15 +585,20 @@ def create_app():
             name = clean_text(request.form.get('name'), 200)
             price = parse_number(request.form.get('price'))
             stock = parse_int(request.form.get('stock'), 0, minimum=0, maximum=1000000)
-            code = clean_text(request.form.get('code'), 100)
-            description = clean_text(request.form.get('description'), 5000)
-            category = clean_text(request.form.get('category'), 100)
+            raw_code = request.form.get('code', '')
+            raw_description = request.form.get('description', '')
+            raw_category = request.form.get('category', '')
+            too_long = (len(raw_code) > 100 or len(raw_description) > 5000
+                        or len(raw_category) > 100)
+            code = optional_text(raw_code, 100)
+            description = optional_text(raw_description, 5000)
+            category = optional_text(raw_category, 100)
             if not name:
                 flash('نام محصول الزامی است', 'danger')
                 return render_template('admin/product_form.html', product=product,
                                        global_discounts=Discount.query.filter(Discount.product_id.is_(None)).all())
             if price is None or price < 0 or price > 99999999 or stock is INVALID \
-                    or code is None or description is None or category is None:
+                    or too_long:
                 flash(INVALID_NUMBER, 'danger')
                 return render_template('admin/product_form.html', product=product,
                                        global_discounts=Discount.query.filter(Discount.product_id.is_(None)).all())
@@ -872,10 +877,11 @@ def create_app():
             return redirect(url_for('admin_login'))
         if request.method == 'POST':
             values = {
-                field: clean_text(request.form.get(field), 200)
+                field: optional_text(request.form.get(field), 200)
                 for field in FOOTER_FIELDS
             }
-            if any(value is None for value in values.values()):
+            if any(len(request.form.get(field, '')) > 200
+                   for field in FOOTER_FIELDS):
                 flash('متن وارد شده بیش از حد طولانی است', 'danger')
                 return redirect(url_for('admin_footer'))
             save_footer_values(**values)
