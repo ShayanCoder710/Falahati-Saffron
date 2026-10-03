@@ -28,6 +28,20 @@
                 {% endfor %}
             </div>
             {% endif %}
+            {% if global_discounts %}
+            <div class="discount-tiers">
+                <span class="discount-tiers-title">تخفیف سراسری</span>
+                {% for d in global_discounts %}
+                <div class="discount-tier">
+                    <span class="discount-percent">{{ d.percent | fa_num }}٪</span>
+                    <span class="discount-tier-text">
+                        {% if d.max_quantity %}خرید {{ d.min_quantity | fa_num }} تا {{ d.max_quantity | fa_num }} عدد{% else %}خرید {{ d.min_quantity | fa_num }} عدد به بالا{% endif %}
+                    </span>
+                    <span class="discount-tier-price">{{ (product.price | float * (100 - d.percent) / 100) | fa_num }} تومان</span>
+                </div>
+                {% endfor %}
+            </div>
+            {% endif %}
             {% if product.description %}
                 <p class="description">{{ product.description }}</p>
             {% endif %}

@@ -1,0 +1,60 @@
+{% extends "admin/base_admin.html" %}
+{% block title %}مدیریت تخفیف‌ها - زعفران فلاحتی{% endblock %}
+{% block content %}
+<div class="container">
+    <div class="about-admin-wrap">
+        <div class="about-admin-hero">
+            <div class="about-admin-hero-icon"><img src="{{ url_for('static', filename='images/icon.png') }}" alt=""></div>
+            <h1>مدیریت تخفیف‌های سراسری</h1>
+            <p>تخفیف‌های ثبت‌شده در این بخش روی همه محصولات فروشگاه اعمال می‌شوند</p>
+        </div>
+        <div class="about-admin-card">
+            <div class="about-admin-card-head">
+                <h3>تخفیف‌های سراسری فعال</h3>
+                <p>در صورت همپوشانی با تخفیف محصول، بیشترین درصد اعمال می‌شود</p>
+            </div>
+            {% if global_discounts %}
+            <div class="discount-list">
+                {% for d in global_discounts %}
+                <div class="discount-row">
+                    <div class="discount-info">
+                        <span class="discount-percent">{{ d.percent | fa_num }}٪</span>
+                        <span class="discount-range">
+                            {% if d.max_quantity %}از {{ d.min_quantity | fa_num }} تا {{ d.max_quantity | fa_num }} عدد{% else %}از {{ d.min_quantity | fa_num }} عدد به بالا{% endif %}
+                        </span>
+                        <span class="discount-range">روی همه محصولات</span>
+                    </div>
+                    <form method="POST" action="{{ url_for('admin_global_discount_delete', did=d.id) }}">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        <button type="submit" class="btn btn-danger btn-sm">حذف</button>
+                    </form>
+                </div>
+                {% endfor %}
+            </div>
+            {% else %}
+            <p class="no-discounts">تخفیف سراسری ثبت نشده است.</p>
+            {% endif %}
+            <form method="POST" action="{{ url_for('admin_global_discount_add') }}" class="discount-add-form">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <div class="discount-fields">
+                    <div class="form-group">
+                        <label for="min_quantity">حداقل تعداد</label>
+                        <input type="number" id="min_quantity" name="min_quantity" min="1" placeholder="مثلاً ۲">
+                    </div>
+                    <div class="form-group">
+                        <label for="max_quantity">حداکثر تعداد (خالی = نامحدود)</label>
+                        <input type="number" id="max_quantity" name="max_quantity" min="1" placeholder="خالی بگذارید">
+                    </div>
+                    <div class="form-group">
+                        <label for="percent">درصد تخفیف (۱ تا ۹۰)</label>
+                        <input type="number" id="percent" name="percent" min="1" max="90" placeholder="مثلاً ۱۰">
+                    </div>
+                </div>
+                <div class="form-actions">
+                    <button type="submit" class="btn btn-primary">افزودن تخفیف سراسری</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

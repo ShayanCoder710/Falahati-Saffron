@@ -64,7 +64,7 @@ class Discount(db.Model):
     __tablename__ = 'discount'
 
     id = db.Column(db.Integer, primary_key=True)
-    product_id = db.Column(db.Integer, db.ForeignKey('product.id'), nullable=False)
+    product_id = db.Column(db.Integer, db.ForeignKey('product.id'), nullable=True)
     min_quantity = db.Column(db.Integer, nullable=False, default=1)
     max_quantity = db.Column(db.Integer, nullable=True)
     percent = db.Column(db.Integer, nullable=False, default=0)

@@ -80,6 +80,24 @@
         {% else %}
         <p class="no-discounts">برای این محصول تخفیفی ثبت نشده است.</p>
         {% endif %}
+        {% if global_discounts %}
+        <div class="discount-section global-note">
+            <h3>تخفیف‌های سراسری (روی همه محصولات)</h3>
+            <div class="discount-list">
+                {% for d in global_discounts %}
+                <div class="discount-row">
+                    <div class="discount-info">
+                        <span class="discount-percent">{{ d.percent | fa_num }}٪</span>
+                        <span class="discount-range">
+                            {% if d.max_quantity %}از {{ d.min_quantity | fa_num }} تا {{ d.max_quantity | fa_num }} عدد{% else %}از {{ d.min_quantity | fa_num }} عدد به بالا{% endif %}
+                        </span>
+                    </div>
+                    <a href="{{ url_for('admin_discounts') }}" class="btn btn-ghost btn-sm">مدیریت</a>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+        {% endif %}
         <form method="POST" action="{{ url_for('admin_discount_add', pid=product.id) }}" class="discount-add-form">
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <div class="discount-fields">

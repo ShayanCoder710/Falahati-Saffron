@@ -49,10 +49,14 @@ def discount_price(discount, quantity, unit_price):
 
 
 def best_discount(product_id, quantity):
-    matches = [
-        d for d in Discount.query.filter_by(product_id=product_id).all()
-        if discount_applies(d, quantity)
-    ]
+    if product_id is None:
+        candidates = Discount.query.filter(Discount.product_id.is_(None)).all()
+    else:
+        candidates = Discount.query.filter(or_(
+            Discount.product_id == product_id,
+            Discount.product_id.is_(None),
+        )).all()
+    matches = [d for d in candidates if discount_applies(d, quantity)]
     return max(matches, key=lambda d: d.percent) if matches else None
 
 

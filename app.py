@@ -118,7 +118,8 @@ def create_app():
         product = db.session.get(Product, pid)
         if product is None:
             abort(404)
-        return render_template('product_detail.html', product=product)
+        global_discounts = Discount.query.filter(Discount.product_id.is_(None)).all()
+        return render_template('product_detail.html', product=product, global_discounts=global_discounts)
 
     @app.route('/cart', methods=['GET', 'POST'])
     def cart():
@@ -505,7 +506,8 @@ def create_app():
             stock = parse_number(request.form.get('stock'), 0)
             if not price or price < 0 or stock is None or stock < 0:
                 flash(INVALID_NUMBER, 'danger')
-                return render_template('admin/product_form.html', product=product)
+                return render_template('admin/product_form.html', product=product,
+                                       global_discounts=Discount.query.filter(Discount.product_id.is_(None)).all())
             product.code = request.form.get('code', '')
             product.name = request.form.get('name')
             product.description = request.form.get('description', '')
@@ -520,7 +522,8 @@ def create_app():
             db.session.commit()
             flash('محصول ویرایش شد', 'success')
             return redirect(url_for('admin_products'))
-        return render_template('admin/product_form.html', product=product)
+        return render_template('admin/product_form.html', product=product,
+                               global_discounts=Discount.query.filter(Discount.product_id.is_(None)).all())
 
     @app.route('/admin/products/delete/<int:pid>', methods=['POST'])
     def admin_product_delete(pid):
@@ -581,6 +584,51 @@ def create_app():
         db.session.commit()
         flash('تخفیف حذف شد', 'success')
         return redirect(url_for('admin_product_edit', pid=pid))
+
+    @app.route('/admin/discounts')
+    def admin_discounts():
+        if 'admin_id' not in session:
+            return redirect(url_for('admin_login'))
+        global_discounts = Discount.query.filter(Discount.product_id.is_(None)).all()
+        return render_template('admin/discounts.html', global_discounts=global_discounts)
+
+    @app.route('/admin/discounts/add', methods=['POST'])
+    def admin_global_discount_add():
+        if 'admin_id' not in session:
+            return redirect(url_for('admin_login'))
+        min_qty = parse_int(request.form.get('min_quantity'))
+        max_qty = parse_int(request.form.get('max_quantity'))
+        percent = parse_int(request.form.get('percent'))
+        if percent is None or not 0 < percent <= 90:
+            flash('درصد تخفیف باید بین ۱ تا ۹۰ باشد', 'danger')
+            return redirect(url_for('admin_discounts'))
+        if min_qty is None or min_qty < 1:
+            flash('حداقل تعداد باید عدد مثبت باشد', 'danger')
+            return redirect(url_for('admin_discounts'))
+        if max_qty is not None and max_qty < min_qty:
+            flash('حداکثر تعداد نمی‌تواند کمتر از حداقل باشد', 'danger')
+            return redirect(url_for('admin_discounts'))
+        db.session.add(Discount(
+            product_id=None,
+            min_quantity=min_qty,
+            max_quantity=max_qty,
+            percent=percent,
+        ))
+        db.session.commit()
+        flash('تخفیف سراسری ثبت شد و روی همه محصولات اعمال می‌شود', 'success')
+        return redirect(url_for('admin_discounts'))
+
+    @app.route('/admin/discounts/<int:did>/delete', methods=['POST'])
+    def admin_global_discount_delete(did):
+        if 'admin_id' not in session:
+            return redirect(url_for('admin_login'))
+        discount = db.session.get(Discount, did)
+        if discount is None or discount.product_id is not None:
+            abort(404)
+        db.session.delete(discount)
+        db.session.commit()
+        flash('تخفیف سراسری حذف شد', 'success')
+        return redirect(url_for('admin_discounts'))
 
     @app.route('/admin/orders')
     def admin_orders():
