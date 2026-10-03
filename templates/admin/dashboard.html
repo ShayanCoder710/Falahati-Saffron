@@ -27,41 +27,6 @@
         </div>
     </div>
 
-    <div class="dashboard-links">
-        <a href="{{ url_for('admin_products') }}" class="btn btn-primary">مدیریت محصولات</a>
-        <a href="{{ url_for('admin_orders') }}" class="btn btn-secondary">مدیریت سفارشات</a>
-        <a href="{{ url_for('admin_users') }}" class="btn btn-secondary">مدیریت کاربران</a>
-        <a href="{{ url_for('admin_about') }}" class="btn btn-secondary">درباره ما</a>
-        <a href="{{ url_for('admin_footer') }}" class="btn btn-secondary">فوتر سایت</a>
-    </div>
-
-    <div class="quick-actions">
-        <a href="{{ url_for('admin_product_add') }}" class="quick-action quick-action--primary">
-            <span class="quick-action-title">افزودن محصول</span>
-            <span class="quick-action-note">ثبت محصول جدید با عکس و قیمت</span>
-        </a>
-        <a href="{{ url_for('admin_orders') }}" class="quick-action">
-            <span class="quick-action-title">سفارشات در انتظار</span>
-            <span class="quick-action-count">{{ pending_orders | fa_num }}</span>
-        </a>
-        <a href="{{ url_for('admin_orders') }}" class="quick-action">
-            <span class="quick-action-title">سفارشات پرداخت‌شده</span>
-            <span class="quick-action-count">{{ paid_orders | fa_num }}</span>
-        </a>
-        <a href="{{ url_for('admin_products') }}" class="quick-action{% if low_stock_products %} quick-action--warn{% endif %}">
-            <span class="quick-action-title">محصولات کم‌موجودی</span>
-            <span class="quick-action-count">{{ low_stock_products | length | fa_num }}</span>
-        </a>
-        <a href="{{ url_for('admin_coupons') }}" class="quick-action">
-            <span class="quick-action-title">کدهای تخفیف</span>
-            <span class="quick-action-note">ساخت و مدیریت کد درصدی</span>
-        </a>
-        <a href="{{ url_for('admin_discounts') }}" class="quick-action">
-            <span class="quick-action-title">تخفیف سراسری</span>
-            <span class="quick-action-note">تخفیف روی همه محصولات</span>
-        </a>
-    </div>
-
     <div class="dashboard-section">
         <h2>افزودن سریع محصول</h2>
         <form method="POST" action="{{ url_for('admin_product_add') }}" enctype="multipart/form-data" class="quick-add-form">
