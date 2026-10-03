@@ -8,12 +8,7 @@ from sqlalchemy import func
 
 from config import *
 from extensions import db, csrf
-from func import (
-    FOOTER_FIELDS, about_content, best_discount, change_stock, data_html, discount_price,
-    escape_html, fa_date, fa_digits, fa_num, footer_values, get_cart, get_cart_details,
-    get_user_orders, hash_password, is_valid_phone, order_stock_available, parse_int,
-    parse_number, save_about_content, save_footer_values, search_products, verify_password,
-)
+from func import *
 from models.models import AboutContent, Discount, FooterContent, Order, OrderItem, Product, User
 
 STATUS_LABELS = {
