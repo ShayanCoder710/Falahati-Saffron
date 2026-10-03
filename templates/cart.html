@@ -52,10 +52,7 @@
             {% if my_orders %}
             <div class="my-orders">
                 <div class="my-orders-header">
-                    <div class="my-orders-heading">
-                        <span class="my-orders-heading-icon">🧾</span>
-                        <h2>سفارشات من</h2>
-                    </div>
+                    <h2>سفارشات من</h2>
                     <span class="my-orders-count">{{ my_orders | length | fa_num }} سفارش</span>
                 </div>
                 <div class="my-orders-list">
@@ -89,11 +86,11 @@
                 </div>
                 <div class="my-orders-summary">
                     <div class="my-orders-summary-row">
-                        <span class="my-orders-summary-label"><span class="my-orders-summary-icon">📦</span> سفارش‌های فعال</span>
+                        <span class="my-orders-summary-label">سفارش‌های فعال</span>
                         <strong>{{ my_orders_active | fa_num }}</strong>
                     </div>
                     <div class="my-orders-summary-row total">
-                        <span class="my-orders-summary-label"><span class="my-orders-summary-icon">💰</span> جمع کل سفارش‌ها</span>
+                        <span class="my-orders-summary-label">جمع کل سفارش‌ها</span>
                         <strong>{{ my_orders_total | fa_num }} تومان</strong>
                     </div>
                 </div>
