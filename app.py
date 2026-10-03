@@ -506,8 +506,8 @@ def create_app():
         if product is None:
             abort(404)
         if request.method == 'POST':
-            price = parse_number(request.form, 'price')
-            stock = parse_number(request.form, 'stock', 0)
+            price = parse_number(request.form.get('price'))
+            stock = parse_number(request.form.get('stock'), 0)
             if not price or price < 0 or stock is None or stock < 0:
                 flash(INVALID_NUMBER, 'danger')
                 return render_template('admin/product_form.html', product=product)
