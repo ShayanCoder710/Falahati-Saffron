@@ -9,7 +9,7 @@ from sqlalchemy import func
 from config import *
 from extensions import db, csrf
 from func import *
-from models.models import AboutContent, Discount, FooterContent, Order, OrderItem, Product, User
+from models.models import Discount, Order, OrderItem, Product, User
 
 STATUS_LABELS = {
     'pending': 'در انتظار پرداخت',
@@ -28,6 +28,8 @@ STATUS_ICONS = {
 }
 
 VALID_STATUSES = list(STATUS_LABELS)
+
+STOCK_HELD_STATUSES = {'paid', 'shipped', 'completed'}
 
 IMAGE_EXTENSIONS = {'.png', '.jpg', '.jpeg', '.webp', '.gif'}
 
@@ -179,9 +181,10 @@ def create_app():
             requested = 1
         removed = False
         if match is None and requested > 0:
-            items.append({'product_id': pid, 'quantity': requested})
-            session['cart'] = items
-            session.modified = True
+            if stock > 0:
+                items.append({'product_id': pid, 'quantity': min(requested, stock)})
+                session['cart'] = items
+                session.modified = True
         elif match is not None:
             if stock <= 0:
                 items.remove(match)
@@ -296,6 +299,9 @@ def create_app():
         order = Order.query.filter_by(payment_ref=reference).first()
         if order is None:
             abort(404)
+        if order.user_id != session['user_id']:
+            flash('شما مجوز پرداخت این سفارش را ندارید', 'danger')
+            return redirect(url_for('profile'))
         if order.status != 'pending':
             flash('این سفارش هنوز قابل پرداخت نیست', 'danger')
             return redirect(url_for('order_success', oid=order.id))
@@ -502,14 +508,19 @@ def create_app():
         if product is None:
             abort(404)
         if request.method == 'POST':
+            name = (request.form.get('name') or '').strip()
             price = parse_number(request.form.get('price'))
             stock = parse_number(request.form.get('stock'), 0)
+            if not name:
+                flash('نام محصول الزامی است', 'danger')
+                return render_template('admin/product_form.html', product=product,
+                                       global_discounts=Discount.query.filter(Discount.product_id.is_(None)).all())
             if not price or price < 0 or stock is None or stock < 0:
                 flash(INVALID_NUMBER, 'danger')
                 return render_template('admin/product_form.html', product=product,
                                        global_discounts=Discount.query.filter(Discount.product_id.is_(None)).all())
             product.code = request.form.get('code', '')
-            product.name = request.form.get('name')
+            product.name = name
             product.description = request.form.get('description', '')
             product.price = price
             product.stock = int(stock)
@@ -662,8 +673,15 @@ def create_app():
         if status not in VALID_STATUSES:
             flash('وضعیت نامعتبر است', 'danger')
             return redirect(url_for('admin_orders'))
-        if status == 'cancelled' and order.status == 'paid':
+        was_holding = order.status in STOCK_HELD_STATUSES
+        now_holding = status in STOCK_HELD_STATUSES
+        if was_holding and not now_holding:
             change_stock(order, 1)
+        elif now_holding and not was_holding:
+            if not order_stock_available(order):
+                flash('موجودی کافی نیست؛ وضعیت سفارش تغییر نکرد', 'danger')
+                return redirect(url_for('admin_orders'))
+            change_stock(order, -1)
         order.status = status
         db.session.commit()
         flash('وضعیت سفارش تغییر شد', 'success')

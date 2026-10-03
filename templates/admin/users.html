@@ -10,7 +10,7 @@
         <tbody>
         {% for u in users %}
             <tr>
-                <td>#{{ u.id | fa_num }}</td>
+                <td>#{{ u.id | fa_digits }}</td>
                 <td>{{ u.username }}</td>
                 <td>{{ u.full_name or '-' }}</td>
                 <td dir="ltr">{{ u.phone | fa_digits if u.phone else '-' }}</td>

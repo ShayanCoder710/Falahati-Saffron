@@ -68,7 +68,7 @@
                         </span>
                         <span class="order-row-body">
                             <span class="order-row-top">
-                                <span class="order-row-title">سفارش #{{ o.id | fa_num }}</span>
+                                <span class="order-row-title">سفارش #{{ o.id | fa_digits }}</span>
                                 <span class="status-badge status-{{ o.status }}">{{ status_labels.get(o.status, o.status) }}</span>
                             </span>
                             <span class="order-row-lines">{{ o.lines | join('، ') }}</span>

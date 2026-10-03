@@ -152,6 +152,8 @@ def get_cart_details():
         if not product:
             continue
         quantity = min(int(entry['quantity']), product.stock or 0)
+        if quantity < 1:
+            continue
         discount = best_discount(product.id, quantity)
         unit_price = discount_price(discount, quantity, product.price) if discount else float(product.price)
         details.append({

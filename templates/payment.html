@@ -6,7 +6,7 @@
         <h1>درگاه پرداخت</h1>
         <div class="payment-info">
             <p>مبلغ قابل پرداخت: <strong>{{ order.total_price | fa_num }} تومان</strong></p>
-            <p>شماره سفارش: #{{ order.id | fa_num }}</p>
+            <p>شماره سفارش: #{{ order.id | fa_digits }}</p>
         </div>
         <div class="payment-mock-actions">
             <form method="POST" action="{{ url_for('payment_verify') }}">
