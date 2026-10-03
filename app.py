@@ -43,6 +43,7 @@ def create_app():
     app.config['SECRET_KEY'] = SECRET_KEY
     app.config['SQLALCHEMY_DATABASE_URI'] = SQLALCHEMY_DATABASE_URI
     app.config['UPLOAD_FOLDER'] = os.path.join(app.root_path, 'static', 'images')
+    app.config['MAX_CONTENT_LENGTH'] = 5 * 1024 * 1024
     app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(days=90)
     app.config['SESSION_REFRESH_EACH_REQUEST'] = True
 
@@ -81,7 +82,8 @@ def create_app():
             'status_labels': STATUS_LABELS,
             'status_icons': STATUS_ICONS,
             'active_coupon': active_coupon(),
-            'cart_count': sum(int(i.get('quantity', 0)) for i in cart),
+            'cart_count': sum(int(i.get('quantity') or 0) for i in cart
+                              if str(i.get('quantity') or '').lstrip('-').isdigit()),
         }
 
     app.template_filter('fa_num')(fa_num)
@@ -90,15 +92,18 @@ def create_app():
 
     @app.route('/')
     def home():
-        keyword = (request.args.get('q') or '').strip()
+        keyword = (request.args.get('q') or '').strip()[:100]
         return render_template('home.html', products=search_products(keyword), q=keyword)
 
     @app.route('/api/username-available', methods=['GET'])
     def username_available():
-        username = (request.args.get('username') or '').strip()
-        ignore_id = request.args.get('ignore_id', type=int)
+        username = (request.args.get('username') or '').strip()[:80]
+        try:
+            ignore_id = int(request.args.get('ignore_id') or 0)
+        except ValueError:
+            ignore_id = 0
         available = False
-        if len(username) >= 3:
+        if is_valid_username(username):
             query = User.query.filter(func.lower(User.username) == username.lower())
             if ignore_id:
                 query = query.filter(User.id != ignore_id)
@@ -107,7 +112,7 @@ def create_app():
 
     @app.route('/api/products', methods=['GET'])
     def products_api():
-        keyword = (request.args.get('q') or '').strip()
+        keyword = (request.args.get('q') or '').strip()[:100]
         products = search_products(keyword)
         grid = render_template('_product_grid.html', products=products, q=keyword)
         return f'<div data-count="{len(products)}" data-html="{escape_html(grid)}"></div>'
@@ -143,14 +148,14 @@ def create_app():
 
     def add_to_cart():
         product_id = request.form.get('product_id')
-        try:
-            quantity = max(1, int(request.form.get('quantity', 1) or 1))
-        except (TypeError, ValueError):
-            quantity = 1
+        quantity = parse_int(request.form.get('quantity'), 1, minimum=1, maximum=100000)
         product = db.session.get(Product, product_id)
         if not product:
             flash('محصول یافت نشد', 'danger')
             return redirect(url_for('home'))
+        if quantity is INVALID:
+            flash('تعداد وارد شده معتبر نیست', 'danger')
+            return redirect(url_for('cart'))
         items = get_cart()
         in_cart = next((i['quantity'] for i in items if str(i['product_id']) == str(product_id)), 0)
         stock = product.stock or 0
@@ -176,9 +181,8 @@ def create_app():
         match = next((i for i in items if str(i['product_id']) == str(pid)), None)
         product = db.session.get(Product, pid)
         stock = (product.stock or 0) if product else 0
-        try:
-            requested = int(request.form.get('quantity', 1) or 1)
-        except (TypeError, ValueError):
+        requested = parse_int(request.form.get('quantity'), 1, minimum=0, maximum=100000)
+        if requested is INVALID:
             requested = 1
         removed = False
         if match is None and requested > 0:
@@ -274,11 +278,13 @@ def create_app():
         coupon = active_coupon()
         if request.method != 'POST':
             return render_template('checkout.html', items=details, total=total, user=user)
-        name = (request.form.get('name') or '').strip()
-        phone = (request.form.get('phone') or '').strip()
-        address = (request.form.get('address') or '').strip()
+        name = clean_text(request.form.get('name'), 200)
+        phone = clean_text(request.form.get('phone'), 20)
+        address = clean_text(request.form.get('address'), 2000)
         if not all([name, phone, address]):
             flash('لطفا تمام فیلدها را پر کنید', 'danger')
+        elif name is None or phone is None or address is None:
+            flash('اطلاعات وارد شده بیش از حد طولانی است', 'danger')
         elif len(name) < 3 or len(address) < 5:
             flash('نام و آدرس را کامل وارد کنید', 'danger')
         elif not is_valid_phone(phone):
@@ -400,13 +406,23 @@ def create_app():
     def user_register():
         if request.method != 'POST':
             return render_template('user_register.html')
-        username = (request.form.get('username') or '').strip()
+        username = clean_text(request.form.get('username'), 80)
         password = request.form.get('password', '')
-        full_name = (request.form.get('full_name') or '').strip()
-        phone = (request.form.get('phone') or '').strip()
-        address = (request.form.get('address') or '').strip()
+        full_name = clean_text(request.form.get('full_name'), 200)
+        phone = clean_text(request.form.get('phone'), 20)
+        address = clean_text(request.form.get('address'), 2000)
         if not username or not password:
             flash('نام کاربری و رمز عبور الزامی است', 'danger')
+        elif len(password) > 256:
+            flash('رمز عبور خیلی بلند است', 'danger')
+        elif len(password) < 6:
+            flash('رمز عبور باید حداقل ۶ حرف باشد', 'danger')
+        elif username is None or full_name is None or phone is None or address is None:
+            flash('اطلاعات وارد شده بیش از حد طولانی است', 'danger')
+        elif not is_valid_username(username):
+            flash('نام کاربری باید بین ۳ تا ۸۰ حرف و بدون فاصله باشد', 'danger')
+        elif not is_valid_phone(phone):
+            flash('شماره موبایل معتبر نیست', 'danger')
         elif password != request.form.get('password_confirm', ''):
             flash('رمز عبور و تکرار آن مطابقت ندارد', 'danger')
         elif User.query.filter(func.lower(User.username) == username.lower()).first():
@@ -457,9 +473,21 @@ def create_app():
         }
         if request.method != 'POST':
             return render_template('profile.html', **context)
-        new_username = (request.form.get('username') or '').strip()
+        new_username = clean_text(request.form.get('username'), 80)
+        full_name = clean_text(request.form.get('full_name'), 200)
+        phone = clean_text(request.form.get('phone'), 20)
+        address = clean_text(request.form.get('address'), 2000)
         if not new_username:
             flash('نام کاربری نمی‌تواند خالی باشد', 'danger')
+            return render_template('profile.html', **context)
+        if not is_valid_username(new_username):
+            flash('نام کاربری باید بین ۳ تا ۸۰ حرف و بدون فاصله باشد', 'danger')
+            return render_template('profile.html', **context)
+        if not is_valid_phone(phone):
+            flash('شماره موبایل معتبر نیست', 'danger')
+            return render_template('profile.html', **context)
+        if full_name is None or address is None:
+            flash('اطلاعات وارد شده بیش از حد طولانی است', 'danger')
             return render_template('profile.html', **context)
         taken = User.query.filter(
             func.lower(User.username) == new_username.lower(),
@@ -469,9 +497,9 @@ def create_app():
             flash('این نام کاربری توسط کاربر دیگری در استفاده است', 'danger')
             return render_template('profile.html', **context)
         user.username = new_username
-        user.full_name = (request.form.get('full_name') or '').strip()
-        user.phone = (request.form.get('phone') or '').strip()
-        user.address = (request.form.get('address') or '').strip()
+        user.full_name = full_name
+        user.phone = phone
+        user.address = address
         db.session.commit()
         flash('اطلاعات حساب به‌روز شد', 'success')
         return redirect(url_for('profile'))
@@ -479,9 +507,9 @@ def create_app():
     @app.route('/admin/login', methods=['GET', 'POST'])
     def admin_login():
         if request.method == 'POST':
-            username = request.form.get('username')
-            password = request.form.get('password')
-            if username == ADMIN_USERNAME and password == ADMIN_PASSWORD:
+            username = clean_text(request.form.get('username'), 80) or ''
+            password = request.form.get('password', '') or ''
+            if len(password) <= 256 and username == ADMIN_USERNAME and password == ADMIN_PASSWORD:
                 session['admin_id'] = 1
                 session.permanent = True
                 flash('ورود موفقیت آمیز بود', 'success')
@@ -522,22 +550,22 @@ def create_app():
         if 'admin_id' not in session:
             return redirect(url_for('admin_login'))
         if request.method == 'POST':
-            name = (request.form.get('name') or '').strip()
+            name = clean_text(request.form.get('name'), 200)
             price = parse_number(request.form.get('price'))
-            stock = parse_number(request.form.get('stock'), 0)
-            if not name or not price or price < 0:
+            stock = parse_int(request.form.get('stock'), 0, minimum=0, maximum=1000000)
+            if not name:
                 flash('نام و قیمت محصول الزامی است', 'danger')
                 return render_template('admin/product_form.html')
-            if stock is None or stock < 0:
+            if price is None or price < 0 or price > 99999999 or stock is INVALID:
                 flash(INVALID_NUMBER, 'danger')
                 return render_template('admin/product_form.html')
             product = Product(
-                code=request.form.get('code', ''),
+                code=clean_text(request.form.get('code'), 100),
                 name=name,
-                description=request.form.get('description', ''),
+                description=clean_text(request.form.get('description'), 5000),
                 price=price,
-                stock=int(stock),
-                category=request.form.get('category', ''),
+                stock=stock,
+                category=clean_text(request.form.get('category'), 100),
                 image=save_product_image(request.files.get('image')),
             )
             db.session.add(product)
@@ -554,23 +582,27 @@ def create_app():
         if product is None:
             abort(404)
         if request.method == 'POST':
-            name = (request.form.get('name') or '').strip()
+            name = clean_text(request.form.get('name'), 200)
             price = parse_number(request.form.get('price'))
-            stock = parse_number(request.form.get('stock'), 0)
+            stock = parse_int(request.form.get('stock'), 0, minimum=0, maximum=1000000)
+            code = clean_text(request.form.get('code'), 100)
+            description = clean_text(request.form.get('description'), 5000)
+            category = clean_text(request.form.get('category'), 100)
             if not name:
                 flash('نام محصول الزامی است', 'danger')
                 return render_template('admin/product_form.html', product=product,
                                        global_discounts=Discount.query.filter(Discount.product_id.is_(None)).all())
-            if not price or price < 0 or stock is None or stock < 0:
+            if price is None or price < 0 or price > 99999999 or stock is INVALID \
+                    or code is None or description is None or category is None:
                 flash(INVALID_NUMBER, 'danger')
                 return render_template('admin/product_form.html', product=product,
                                        global_discounts=Discount.query.filter(Discount.product_id.is_(None)).all())
-            product.code = request.form.get('code', '')
+            product.code = code
             product.name = name
-            product.description = request.form.get('description', '')
+            product.description = description
             product.price = price
-            product.stock = int(stock)
-            product.category = request.form.get('category', '')
+            product.stock = stock
+            product.category = category
             new_image = save_product_image(request.files.get('image'))
             if new_image:
                 if product.image:
@@ -612,14 +644,17 @@ def create_app():
         product = db.session.get(Product, pid)
         if product is None:
             abort(404)
-        min_qty = parse_int(request.form.get('min_quantity'))
-        max_qty = parse_int(request.form.get('max_quantity'))
-        percent = parse_int(request.form.get('percent'))
-        if percent is None or not 0 < percent <= 90:
+        min_qty = parse_int(request.form.get('min_quantity'), minimum=1, maximum=100000)
+        max_qty = parse_optional_int(request.form.get('max_quantity'), minimum=1, maximum=100000)
+        percent = parse_int(request.form.get('percent'), minimum=1, maximum=90)
+        if percent is INVALID:
             flash('درصد تخفیف باید بین ۱ تا ۹۰ باشد', 'danger')
             return redirect(url_for('admin_product_edit', pid=pid))
-        if min_qty is None or min_qty < 1:
+        if min_qty is INVALID:
             flash('حداقل تعداد باید عدد مثبت باشد', 'danger')
+            return redirect(url_for('admin_product_edit', pid=pid))
+        if max_qty is INVALID:
+            flash('حداکثر تعداد باید عدد مثبت باشد', 'danger')
             return redirect(url_for('admin_product_edit', pid=pid))
         if max_qty is not None and max_qty < min_qty:
             flash('حداکثر تعداد نمی‌تواند کمتر از حداقل باشد', 'danger')
@@ -657,14 +692,17 @@ def create_app():
     def admin_global_discount_add():
         if 'admin_id' not in session:
             return redirect(url_for('admin_login'))
-        min_qty = parse_int(request.form.get('min_quantity'))
-        max_qty = parse_int(request.form.get('max_quantity'))
-        percent = parse_int(request.form.get('percent'))
-        if percent is None or not 0 < percent <= 90:
+        min_qty = parse_int(request.form.get('min_quantity'), minimum=1, maximum=100000)
+        max_qty = parse_optional_int(request.form.get('max_quantity'), minimum=1, maximum=100000)
+        percent = parse_int(request.form.get('percent'), minimum=1, maximum=90)
+        if percent is INVALID:
             flash('درصد تخفیف باید بین ۱ تا ۹۰ باشد', 'danger')
             return redirect(url_for('admin_discounts'))
-        if min_qty is None or min_qty < 1:
+        if min_qty is INVALID:
             flash('حداقل تعداد باید عدد مثبت باشد', 'danger')
+            return redirect(url_for('admin_discounts'))
+        if max_qty is INVALID:
+            flash('حداکثر تعداد باید عدد مثبت باشد', 'danger')
             return redirect(url_for('admin_discounts'))
         if max_qty is not None and max_qty < min_qty:
             flash('حداکثر تعداد نمی‌تواند کمتر از حداقل باشد', 'danger')
@@ -703,16 +741,19 @@ def create_app():
         if 'admin_id' not in session:
             return redirect(url_for('admin_login'))
         code = normalize_coupon(request.form.get('code'))
-        percent = parse_int(request.form.get('percent'))
+        if len(code) > 50:
+            flash('کد تخفیف نباید بیشتر از ۵۰ حرف باشد', 'danger')
+            return redirect(url_for('admin_coupons'))
+        percent = parse_int(request.form.get('percent'), minimum=1, maximum=90)
         expires = parse_jalali_date(request.form.get('expires_at'))
-        max_uses = parse_int(request.form.get('max_uses'))
+        max_uses = parse_int(request.form.get('max_uses'), minimum=1, maximum=1000000)
         if not code:
             flash('کد تخفیف الزامی است', 'danger')
             return redirect(url_for('admin_coupons'))
         if Coupon.query.filter_by(code=code).first():
             flash('این کد تخفیف قبلاً ثبت شده است', 'danger')
             return redirect(url_for('admin_coupons'))
-        if percent is None or not 0 < percent <= 90:
+        if percent is INVALID:
             flash('درصد تخفیف باید بین ۱ تا ۹۰ باشد', 'danger')
             return redirect(url_for('admin_coupons'))
         raw_expires = (request.form.get('expires_at') or '').strip()
@@ -722,7 +763,7 @@ def create_app():
         if expires is not None and expires.date() < datetime.now().date():
             flash('تاریخ انقضا نمی‌تواند در گذشته باشد', 'danger')
             return redirect(url_for('admin_coupons'))
-        if max_uses is None or max_uses < 1:
+        if max_uses is INVALID:
             flash('سقف استفاده باید عدد مثبت باشد', 'danger')
             return redirect(url_for('admin_coupons'))
         db.session.add(Coupon(code=code, percent=percent, expires_at=expires, max_uses=max_uses))
@@ -816,7 +857,11 @@ def create_app():
             return redirect(url_for('admin_login'))
         content = about_content()
         if request.method == 'POST':
-            save_about_content(request.form.get('content', ''))
+            text = clean_text(request.form.get('content'), 20000)
+            if text is None:
+                flash('متن درباره ما بیش از حد طولانی است', 'danger')
+                return redirect(url_for('admin_about'))
+            save_about_content(text)
             flash('متن درباره ما ذخیره شد', 'success')
             return redirect(url_for('admin_about'))
         return render_template('admin/about.html', content=content)
@@ -826,10 +871,14 @@ def create_app():
         if 'admin_id' not in session:
             return redirect(url_for('admin_login'))
         if request.method == 'POST':
-            save_footer_values(**{
-                field: (request.form.get(field) or '').strip()
+            values = {
+                field: clean_text(request.form.get(field), 200)
                 for field in FOOTER_FIELDS
-            })
+            }
+            if any(value is None for value in values.values()):
+                flash('متن وارد شده بیش از حد طولانی است', 'danger')
+                return redirect(url_for('admin_footer'))
+            save_footer_values(**values)
             flash('اطلاعات فوتر ذخیره شد', 'success')
             return redirect(url_for('admin_footer'))
         return render_template('admin/footer.html', **footer_values())
@@ -841,6 +890,11 @@ def create_app():
     @app.errorhandler(403)
     def forbidden(error):
         return render_template('403.html'), 403
+
+    @app.errorhandler(413)
+    def too_large(error):
+        flash('حجم فایل ارسالی بیش از حد مجاز است', 'danger')
+        return redirect(url_for('admin_products'))
 
     return app
 

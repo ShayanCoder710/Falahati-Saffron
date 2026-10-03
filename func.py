@@ -101,6 +101,12 @@ def is_valid_phone(phone):
     return digits.isdigit()
 
 
+def is_valid_username(username):
+    if not 3 <= len(username or '') <= 80:
+        return False
+    return username.replace('_', '').replace('.', '').isalnum()
+
+
 def discount_applies(discount, quantity):
     if quantity < discount.min_quantity:
         return False
@@ -266,24 +272,50 @@ def data_html(**values):
     return '<div ' + ' '.join(pairs) + '></div>'
 
 
-def parse_int(raw, default=None):
+INVALID = object()
+
+
+def parse_int(raw, default=None, minimum=None, maximum=None):
     value = (raw or '').strip()
     if not value:
-        return default
+        return default if default is not None else INVALID
+    if len(value) > 12:
+        return INVALID
     try:
-        return int(value)
+        number = int(value)
     except ValueError:
-        return None
+        return INVALID
+    if minimum is not None and number < minimum:
+        return INVALID
+    if maximum is not None and number > maximum:
+        return INVALID
+    return number
 
 
 def parse_number(raw, default=None):
     value = (raw or '').strip()
     if not value:
         return default
+    if len(value) > 20:
+        return None
     try:
         return float(value)
     except ValueError:
         return None
+
+
+def clean_text(raw, maximum):
+    value = (raw or '').strip()
+    if len(value) > maximum:
+        return None
+    return value
+
+
+def parse_optional_int(raw, minimum=None, maximum=None):
+    value = (raw or '').strip()
+    if not value:
+        return None
+    return parse_int(value, None, minimum=minimum, maximum=maximum)
 
 
 def search_products(keyword):
