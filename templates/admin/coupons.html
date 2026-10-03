@@ -21,7 +21,7 @@
                         <span class="discount-percent">{{ c.percent | fa_num }}٪</span>
                         <span class="discount-range">{{ c.code }}</span>
                         <span class="discount-range">انقضا: {{ c.expires_at | fa_date }}</span>
-                        <span class="discount-range">{% if c.max_uses %}{{ c.used_count | fa_num }} از {{ c.max_uses | fa_num }} استفاده{% else %}بدون سقف استفاده{% endif %}</span>
+                        <span class="discount-range">{{ c.used_count | fa_num }} از {{ c.max_uses | fa_num }} استفاده</span>
                     </div>
                     <form method="POST" action="{{ url_for('admin_coupon_delete', cid=c.id) }}">
                         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
@@ -45,12 +45,14 @@
                         <input type="number" id="percent" name="percent" min="1" max="90" placeholder="مثلاً ۲۰">
                     </div>
                     <div class="form-group">
-                        <label for="expires_at">تاریخ انقضا</label>
-                        <input type="text" id="expires_at" name="expires_at" placeholder="۲۰۲۶-۱۲-۳۱" dir="ltr">
+                        <label for="expires_at">تاریخ انقضا (شمسی)</label>
+                        <input type="text" id="expires_at" name="expires_at" dir="ltr"
+                               placeholder="۱۴۰۵/۰۷/۱۲" autocomplete="off">
+                        <small class="date-note" id="expiresNote" data-default="اگر تاریخ را وارد نکنید، کد همیشگی است">قالب: سال/ماه/روز شمسی — مثل ۱۴۰۵/۰۷/۱۲. اگر خالی بگذارید، کد همیشگی است</small>
                     </div>
                     <div class="form-group">
-                        <label for="max_uses">سقف استفاده (خالی = نامحدود)</label>
-                        <input type="number" id="max_uses" name="max_uses" min="1" placeholder="خالی بگذارید">
+                        <label for="max_uses">سقف استفاده</label>
+                        <input type="number" id="max_uses" name="max_uses" min="1" placeholder="مثلاً ۱۰۰" required>
                     </div>
                 </div>
                 <div class="form-actions">
@@ -60,4 +62,102 @@
         </div>
     </div>
 </div>
+<script>
+(function(){
+    var input = document.getElementById('expires_at');
+    var note = document.getElementById('expiresNote');
+    if (!input || !note) { return; }
+
+    var DEFAULT_NOTE = note.getAttribute('data-default') || 'اگر تاریخ را انتخاب نکنید، کد همیشگی است';
+    var faDigits = '۰۱۲۳۴۵۶۷۸۹';
+
+    function toEnglish(raw){
+        var out = '';
+        for (var i = 0; i < raw.length; i++){
+            var ch = raw.charAt(i);
+            var idx = faDigits.indexOf(ch);
+            out += idx > -1 ? String(idx) : ch;
+        }
+        return out.replace(/[۰-۹]/g, function(d){ return String(faDigits.indexOf(d)); });
+    }
+
+    function fa(text){
+        return String(text).replace(/\d/g, function(d){ return faDigits[Number(d)]; });
+    }
+
+    function parse(raw){
+        var parts = toEnglish(raw).trim().split(/[-/]/);
+        if (parts.length !== 3) { return null; }
+        for (var i = 0; i < 3; i++){
+            if (!/^\d+$/.test(parts[i])) { return null; }
+        }
+        var jy = Number(parts[0]), jm = Number(parts[1]), jd = Number(parts[2]);
+        var lengths = [31,31,31,31,31,31,30,30,30,30,30, jalaliIsLeap(jy) ? 30 : 29];
+        if (jy < 1 || jm < 1 || jm > 12 || jd < 1 || jd > lengths[jm - 1]) { return null; }
+        return [jy, jm, jd];
+    }
+
+    function jalaliIsLeap(jy){
+        return [1,5,9,13,17,22,26,30].indexOf(jy % 33) > -1;
+    }
+
+    function gregorianToJalali(gy, gm, gd){
+        var gDays = [0,31,59,90,120,151,181,212,243,273,304,334];
+        var jy, shift;
+        if (gy > 1600){ jy = 979; shift = gy - 1600; } else { jy = 0; shift = gy - 621; }
+        var gy2 = gm > 2 ? shift + 1 : shift;
+        var days = 365 * shift + Math.floor((gy2 + 3) / 4) - Math.floor((gy2 + 99) / 100)
+            + Math.floor((gy2 + 399) / 400) - 80 + gd + gDays[gm - 1];
+        jy += 33 * Math.floor(days / 12053);
+        days %= 12053;
+        jy += 4 * Math.floor(days / 1461);
+        days %= 1461;
+        if (days > 365){ jy += Math.floor((days - 1) / 365); days = (days - 1) % 365; }
+        if (days < 186){ return [jy, 1 + Math.floor(days / 31), 1 + days % 31]; }
+        return [jy, 7 + Math.floor((days - 186) / 30), 1 + (days - 186) % 30];
+    }
+
+    function todayJalali(){
+        var now = new Date();
+        return gregorianToJalali(now.getFullYear(), now.getMonth() + 1, now.getDate());
+    }
+
+    function jalaliOrdinal(jy, jm, jd){
+        var lengths = [31,31,31,31,31,31,30,30,30,30,30, jalaliIsLeap(jy) ? 30 : 29];
+        var total = 0;
+        for (var y = 1; y < jy; y++){ total += jalaliIsLeap(y) ? 366 : 365; }
+        for (var m = 1; m < jm; m++){ total += lengths[m - 1]; }
+        return total + jd;
+    }
+
+    function render(){
+        var raw = input.value.trim();
+        if (!raw){
+            note.textContent = DEFAULT_NOTE;
+            note.classList.remove('is-set');
+            return;
+        }
+        var parsed = parse(raw);
+        if (!parsed){
+            note.textContent = 'قالب نامعتبر — سال/ماه/روز شمسی، مثل ' + fa('1405/07/12');
+            note.classList.remove('is-set');
+            return;
+        }
+        var diff = jalaliOrdinal(parsed[0], parsed[1], parsed[2]) - jalaliOrdinal.apply(null, todayJalali());
+        if (diff < 0){
+            note.textContent = 'این تاریخ گذشته است و کد بلافاصله منقضی می‌شود';
+            note.classList.remove('is-set');
+            return;
+        }
+        note.textContent = diff === 0
+            ? 'کد تا امشب پایان می‌یابد'
+            : 'اعتبار کد: ' + fa(diff) + ' روز دیگر';
+        note.classList.add('is-set');
+    }
+
+    input.addEventListener('change', render);
+    input.addEventListener('input', render);
+    render();
+})();
+</script>
 {% endblock %}

@@ -1,7 +1,7 @@
 import hashlib
 import secrets
 
-from datetime import datetime
+from datetime import date, datetime
 
 from flask import session
 from sqlalchemy import or_
@@ -17,6 +17,69 @@ FOOTER_FIELDS = {
     'hours': 'شنبه تا پنجشنبه، ۹ صبح تا ۶ عصر',
     'copyright': 'تمامی حقوق محفوظ است.',
 }
+
+
+JALALI_MONTHS = ['فروردین', 'اردیبهشت', 'خرداد', 'تیر', 'مرداد', 'شهریور',
+                  'مهر', 'آبان', 'آذر', 'دی', 'بهمن', 'اسفند']
+
+JALALI_LEAP = (1, 5, 9, 13, 17, 22, 26, 30)
+
+JALALI_EPOCH_ORDINAL = 226895
+
+GREGORIAN_DAYS = [0, 31, 59, 90, 120, 151, 181, 212, 243, 273, 304, 334]
+
+
+def jalali_is_leap(jy):
+    return jy % 33 in JALALI_LEAP
+
+
+def jalali_days_in_month(jy, jm):
+    if jm < 1 or jm > 12:
+        return 0
+    if jm <= 6:
+        return 31
+    if jm <= 11:
+        return 30
+    return 30 if jalali_is_leap(jy) else 29
+
+
+def jalali_valid(jy, jm, jd):
+    return jy >= 1 and 1 <= jm <= 12 \
+        and 1 <= jd <= jalali_days_in_month(jy, jm)
+
+
+def gregorian_to_jalali(gy, gm, gd):
+    if gy > 1600:
+        jy = 979
+        gy -= 1600
+    else:
+        jy = 0
+        gy -= 621
+    gy2 = gy + 1 if gm > 2 else gy
+    days = 365 * gy + (gy2 + 3) // 4 - (gy2 + 99) // 100 \
+        + (gy2 + 399) // 400 - 80 + gd + GREGORIAN_DAYS[gm - 1]
+    jy += 33 * (days // 12053)
+    days %= 12053
+    jy += 4 * (days // 1461)
+    days %= 1461
+    if days > 365:
+        jy += (days - 1) // 365
+        days = (days - 1) % 365
+    if days < 186:
+        return jy, 1 + days // 31, 1 + days % 31
+    return jy, 7 + (days - 186) // 30, 1 + (days - 186) % 30
+
+
+def jalali_to_gregorian(jy, jm, jd):
+    cycles, rest = divmod(jy - 1, 33)
+    days = cycles * 12053 + rest * 365
+    for year in range(jy - rest, jy):
+        if jalali_is_leap(year):
+            days += 1
+    for month in range(1, jm):
+        days += jalali_days_in_month(jy, month)
+    value = date.fromordinal(JALALI_EPOCH_ORDINAL + days + jd - 1)
+    return value.year, value.month, value.day
 
 
 def hash_password(password):
@@ -62,27 +125,43 @@ def best_discount(product_id, quantity):
     return max(matches, key=lambda d: d.percent) if matches else None
 
 
+def safe_redirect_target(raw, fallback):
+    value = (raw or '').strip()
+    if not value.startswith('/'):
+        return fallback
+    if value.startswith('//') or value.startswith('/\\'):
+        return fallback
+    if '\\' in value or '\n' in value or '\r' in value or '\t' in value:
+        return fallback
+    return value
+
+
 def normalize_coupon(raw):
     return (raw or '').strip().upper()
 
 
-def parse_coupon_date(raw):
-    parts = (raw or '').strip().split('-')
+def parse_jalali_date(raw):
+    text = (raw or '').strip().translate(
+        str.maketrans('۰۱۲۳۴۵۶۷۸۹٠١٢٣٤٥٦٧٨٩', '01234567890123456789'))
+    parts = text.replace('/', '-').split('-')
     if len(parts) != 3:
         return None
     try:
-        year, month, day = int(parts[0]), int(parts[1]), int(parts[2])
-        return datetime(year, month, day, 23, 59, 59)
+        jy, jm, jd = int(parts[0]), int(parts[1]), int(parts[2])
     except ValueError:
         return None
+    if not jalali_valid(jy, jm, jd):
+        return None
+    gy, gm, gd = jalali_to_gregorian(jy, jm, jd)
+    return datetime(gy, gm, gd, 23, 59, 59)
 
 
 def coupon_blocked(coupon):
     if coupon is None:
         return 'کد تخفیف یافت نشد'
-    if coupon.expires_at and coupon.expires_at < datetime.utcnow():
+    if coupon.expires_at and coupon.expires_at < datetime.now():
         return 'اعتبار این کد تخفیف به پایان رسیده است'
-    if coupon.max_uses is not None and coupon.used_count >= coupon.max_uses:
+    if coupon.used_count >= coupon.max_uses:
         return 'سقف استفاده از این کد تخفیف تکمیل شده است'
     return None
 
@@ -117,16 +196,18 @@ def clear_coupon():
 
 def consume_coupon(order):
     coupon = find_coupon(order.coupon_code)
-    if coupon is None:
+    if coupon is None or order.coupon_consumed:
         return
     coupon.used_count = (coupon.used_count or 0) + 1
+    order.coupon_consumed = True
 
 
 def release_coupon(order):
     coupon = find_coupon(order.coupon_code)
-    if coupon is None or not coupon.used_count:
+    if coupon is None or not order.coupon_consumed:
         return
-    coupon.used_count -= 1
+    coupon.used_count = max(0, (coupon.used_count or 0) - 1)
+    order.coupon_consumed = False
 
 
 def unit_price_for(product, quantity, coupon_percent=0):
@@ -296,4 +377,15 @@ def fa_digits(value):
 def fa_date(value, fmt='%Y/%m/%d'):
     if not value:
         return '-'
-    return fa_digits(value.strftime(fmt))
+    if isinstance(value, datetime):
+        jy, jm, jd = gregorian_to_jalali(value.year, value.month, value.day)
+        text = f'{jy}/{jm:02d}/{jd:02d}'
+        if '%S' in fmt:
+            text += ' ' + value.strftime('%H:%M:%S')
+        elif '%H' in fmt or '%M' in fmt:
+            text += ' ' + value.strftime('%H:%M')
+        return fa_digits(text)
+    if isinstance(value, date):
+        jy, jm, jd = gregorian_to_jalali(value.year, value.month, value.day)
+        return fa_digits(f'{jy}/{jm:02d}/{jd:02d}')
+    return fa_digits(str(value))

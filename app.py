@@ -1,4 +1,4 @@
-from datetime import timedelta
+from datetime import datetime, timedelta
 
 import os
 import secrets
@@ -220,6 +220,8 @@ def create_app():
         is_ajax = request.headers.get('X-Requested-With') == 'XMLHttpRequest'
         session['cart'] = [i for i in get_cart() if str(i['product_id']) != str(pid)]
         session.modified = True
+        if not session['cart']:
+            clear_coupon()
         if is_ajax:
             details, total = get_cart_details()
             return data_html(ok=True, total=total, count=sum(i['quantity'] for i in details))
@@ -232,15 +234,19 @@ def create_app():
             flash(blocked, 'danger')
         else:
             flash(f'کد تخفیف {coupon.percent}٪ اعمال شد', 'success')
-        return redirect(request.form.get('next') or url_for('cart'))
+        return redirect(safe_redirect_target(
+            request.form.get('next'), url_for('cart')))
 
     @app.route('/coupon/remove', methods=['POST'])
     def coupon_remove():
         clear_coupon()
         flash('کد تخفیف حذف شد', 'info')
-        return redirect(request.form.get('next') or url_for('cart'))
+        return redirect(safe_redirect_target(
+            request.form.get('next'), url_for('cart')))
 
     def cancel_order(order, message):
+        if order.status in STOCK_HELD_STATUSES:
+            change_stock(order, 1)
         order.status = 'cancelled'
         release_coupon(order)
         db.session.commit()
@@ -307,9 +313,14 @@ def create_app():
 
     @app.route('/payment/<int:oid>')
     def payment_gateway(oid):
+        if 'user_id' not in session:
+            return redirect(url_for('user_login'))
         order = db.session.get(Order, oid)
         if order is None:
             abort(404)
+        if order.user_id != session['user_id']:
+            flash('شما مجوز پرداخت این سفارش را ندارید', 'danger')
+            return redirect(url_for('profile'))
         if order.status == 'paid':
             return redirect(url_for('order_success', oid=order.id))
         if order.status == 'cancelled':
@@ -333,6 +344,11 @@ def create_app():
         if order.status != 'pending':
             flash('این سفارش هنوز قابل پرداخت نیست', 'danger')
             return redirect(url_for('order_success', oid=order.id))
+        if order.coupon_code and not order.coupon_consumed:
+            spent = coupon_blocked(find_coupon(order.coupon_code))
+            if spent:
+                flash(spent, 'danger')
+                return redirect(url_for('order_success', oid=order.id))
         if request.form.get('result') == 'fail':
             return cancel_order(order, 'پرداخت ناموفق بود و سفارش لغو شد')
         if not order_stock_available(order):
@@ -578,11 +594,15 @@ def create_app():
             flash(f'این محصول در {used} سفارش استفاده شده و قابل حذف نیست. موجودی آن را صفر کنید.', 'danger')
             return redirect(url_for('admin_products'))
         image = product.image
+        owned = Discount.query.filter_by(product_id=product.id).delete()
         db.session.delete(product)
         db.session.commit()
         if image:
             delete_product_image(image)
-        flash('محصول حذف شد', 'success')
+        if owned:
+            flash(f'محصول و {owned} تخفیف آن حذف شد', 'success')
+        else:
+            flash('محصول حذف شد', 'success')
         return redirect(url_for('admin_products'))
 
     @app.route('/admin/products/<int:pid>/discounts', methods=['POST'])
@@ -675,7 +695,8 @@ def create_app():
     def admin_coupons():
         if 'admin_id' not in session:
             return redirect(url_for('admin_login'))
-        return render_template('admin/coupons.html', coupons=Coupon.query.order_by(Coupon.id.desc()).all())
+        return render_template('admin/coupons.html',
+                               coupons=Coupon.query.order_by(Coupon.id.desc()).all())
 
     @app.route('/admin/coupons/add', methods=['POST'])
     def admin_coupon_add():
@@ -683,7 +704,7 @@ def create_app():
             return redirect(url_for('admin_login'))
         code = normalize_coupon(request.form.get('code'))
         percent = parse_int(request.form.get('percent'))
-        expires = parse_coupon_date(request.form.get('expires_at'))
+        expires = parse_jalali_date(request.form.get('expires_at'))
         max_uses = parse_int(request.form.get('max_uses'))
         if not code:
             flash('کد تخفیف الزامی است', 'danger')
@@ -694,10 +715,14 @@ def create_app():
         if percent is None or not 0 < percent <= 90:
             flash('درصد تخفیف باید بین ۱ تا ۹۰ باشد', 'danger')
             return redirect(url_for('admin_coupons'))
-        if expires is None:
-            flash('تاریخ انقضا را به شکل ۲۰۲۶-۱۲-۳۱ وارد کنید', 'danger')
+        raw_expires = (request.form.get('expires_at') or '').strip()
+        if raw_expires and expires is None:
+            flash('تاریخ انقضا معتبر نیست — قالب سال/ماه/روز شمسی، مثل ۱۴۰۵/۰۷/۱۲', 'danger')
             return redirect(url_for('admin_coupons'))
-        if max_uses is not None and max_uses < 1:
+        if expires is not None and expires.date() < datetime.now().date():
+            flash('تاریخ انقضا نمی‌تواند در گذشته باشد', 'danger')
+            return redirect(url_for('admin_coupons'))
+        if max_uses is None or max_uses < 1:
             flash('سقف استفاده باید عدد مثبت باشد', 'danger')
             return redirect(url_for('admin_coupons'))
         db.session.add(Coupon(code=code, percent=percent, expires_at=expires, max_uses=max_uses))
@@ -759,6 +784,8 @@ def create_app():
                 return redirect(url_for('admin_orders'))
             change_stock(order, -1)
         order.status = status
+        if status == 'cancelled':
+            release_coupon(order)
         db.session.commit()
         flash('وضعیت سفارش تغییر شد', 'success')
         return redirect(url_for('admin_orders'))

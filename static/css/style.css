@@ -164,6 +164,8 @@ code {
     list-style: none;
     gap: .3rem;
     align-items: center;
+    min-width: 0;
+    flex-wrap: nowrap;
 }
 
 .nav-menu a {
@@ -1861,6 +1863,18 @@ code {
     font-size: .76rem;
 }
 
+.date-note {
+    display: block;
+    margin-top: .5rem;
+    color: var(--text-faint);
+    font-size: .76rem;
+}
+
+.date-note.is-set {
+    color: var(--green);
+    font-weight: 600;
+}
+
 @media (max-width: 560px) {
     .image-upload {
         flex-direction: column;
@@ -2152,6 +2166,34 @@ code {
 .coupon-row input {
     flex: 1;
     min-width: 0;
+    width: 100%;
+    padding: .72rem .9rem;
+    border: 1.5px solid var(--border);
+    border-radius: 10px;
+    font-size: .95rem;
+    font-family: inherit;
+    background: var(--field);
+    color: var(--text);
+    text-align: left;
+    letter-spacing: .5px;
+    transition: border-color .18s ease, box-shadow .18s ease, background .18s ease;
+}
+
+.coupon-row input:hover {
+    border-color: rgba(196, 30, 58, .32);
+}
+
+.coupon-row input:focus {
+    outline: none;
+    border-color: var(--red);
+    box-shadow: 0 0 0 4px rgba(196, 30, 58, .12);
+    background: var(--white);
+}
+
+.coupon-row input::placeholder {
+    color: var(--text-faint);
+    font-weight: 400;
+    letter-spacing: normal;
 }
 
 .coupon-row .btn {
@@ -2208,6 +2250,86 @@ code {
     font-weight: 800;
     color: var(--red);
     line-height: 1;
+}
+
+.dashboard-links {
+    display: flex;
+    gap: 1rem;
+    margin-bottom: 2rem;
+    flex-wrap: wrap;
+}
+
+.quick-actions {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: .8rem;
+    margin-bottom: 2rem;
+}
+
+.quick-action {
+    display: flex;
+    flex-direction: column;
+    gap: .3rem;
+    padding: 1rem 1.1rem;
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    box-shadow: var(--shadow);
+    color: var(--text);
+    text-decoration: none;
+    transition: border-color .18s ease, box-shadow .18s ease, transform .18s ease;
+}
+
+.quick-action:hover {
+    border-color: rgba(196, 30, 58, .32);
+    box-shadow: var(--shadow-lg);
+    transform: translateY(-2px);
+}
+
+.quick-action-title {
+    font-size: .92rem;
+    font-weight: 700;
+    color: var(--text);
+}
+
+.quick-action-note {
+    font-size: .78rem;
+    color: var(--text-soft);
+    font-weight: 400;
+}
+
+.quick-action-count {
+    font-size: 1.5rem;
+    font-weight: 800;
+    color: var(--red);
+    line-height: 1.1;
+}
+
+.quick-action--primary {
+    background: var(--red);
+    border-color: var(--red);
+}
+
+.quick-action--primary .quick-action-title {
+    color: var(--white);
+}
+
+.quick-action--primary .quick-action-note {
+    color: rgba(255, 255, 255, .82);
+}
+
+.quick-action--primary:hover {
+    border-color: var(--red-dark);
+}
+
+.quick-action--warn .quick-action-count {
+    color: var(--orange);
+}
+
+@media (max-width: 640px) {
+    .quick-actions {
+        grid-template-columns: repeat(2, 1fr);
+    }
 }
 
 .dashboard-section {
@@ -3076,44 +3198,26 @@ a.footer-contact-item:hover {
     line-height: 1;
 }
 
-@media (max-width: 768px) {
-    .header {
-        padding: .6rem 0 .4rem;
+@media (max-width: 1400px) {
+    .nav-menu {
+        gap: .12rem;
     }
 
-    .features-strip {
-        grid-template-columns: 1fr;
-        gap: .55rem;
-        margin-top: -1.6rem;
-        max-width: 460px;
+    .nav-menu a {
+        font-size: .82rem;
+        padding: .45rem .6rem;
     }
 
-    .feature-card {
-        display: flex;
-        align-items: center;
-        gap: .8rem;
-        text-align: start;
-        padding: .65rem .9rem;
-        box-shadow: var(--shadow);
+    .nav-brand a {
+        font-size: 1rem;
     }
 
-    .feature-card .feature-icon {
-        width: 38px;
-        height: 38px;
-        margin: 0;
-        flex: 0 0 38px;
-        font-size: 1.1rem;
+    .nav-brand img {
+        height: 32px;
     }
+}
 
-    .feature-card h4 {
-        font-size: .88rem;
-    }
-
-    .feature-card p {
-        font-size: .76rem;
-        margin-top: 0;
-    }
-
+@media (max-width: 1080px) {
     .nav-menu {
         display: flex;
         position: absolute;
@@ -3132,7 +3236,10 @@ a.footer-contact-item:hover {
         opacity: 0;
         visibility: hidden;
         pointer-events: none;
-        z-index: 10;
+        z-index: 1001;
+        max-height: calc(100vh - 100px);
+        overflow-y: auto;
+        overscroll-behavior: contain;
         transition: opacity .2s ease, transform .24s cubic-bezier(.2, .8, .2, 1), visibility 0s linear .24s;
     }
 
@@ -3275,6 +3382,45 @@ a.footer-contact-item:hover {
     .nav-toggle.active span:nth-child(3) {
         top: 16px;
         transform: rotate(-45deg);
+    }
+}
+
+@media (max-width: 768px) {
+    .header {
+        padding: .6rem 0 .4rem;
+    }
+
+    .features-strip {
+        grid-template-columns: 1fr;
+        gap: .55rem;
+        margin-top: -1.6rem;
+        max-width: 460px;
+    }
+
+    .feature-card {
+        display: flex;
+        align-items: center;
+        gap: .8rem;
+        text-align: start;
+        padding: .65rem .9rem;
+        box-shadow: var(--shadow);
+    }
+
+    .feature-card .feature-icon {
+        width: 38px;
+        height: 38px;
+        margin: 0;
+        flex: 0 0 38px;
+        font-size: 1.1rem;
+    }
+
+    .feature-card h4 {
+        font-size: .88rem;
+    }
+
+    .feature-card p {
+        font-size: .76rem;
+        margin-top: 0;
     }
 
     .hero {

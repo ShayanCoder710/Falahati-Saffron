@@ -32,6 +32,7 @@ class Order(db.Model):
     status = db.Column(db.String(50), default='pending')
     payment_ref = db.Column(db.String(100), nullable=True)
     coupon_code = db.Column(db.String(50), nullable=True)
+    coupon_consumed = db.Column(db.Boolean, default=False, nullable=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
     items = db.relationship('OrderItem', backref='order', lazy='select', cascade='all, delete-orphan')
@@ -81,7 +82,7 @@ class Coupon(db.Model):
     code = db.Column(db.String(50), unique=True, nullable=False)
     percent = db.Column(db.Integer, nullable=False, default=0)
     expires_at = db.Column(db.DateTime, nullable=False)
-    max_uses = db.Column(db.Integer, nullable=True)
+    max_uses = db.Column(db.Integer, nullable=False)
     used_count = db.Column(db.Integer, nullable=False, default=0)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
