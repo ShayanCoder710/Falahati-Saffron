@@ -56,17 +56,3 @@ wsgi.py         WSGI entry point
 
    The app creates tables on first start. Open http://127.0.0.1:5000.
    The admin panel is at /admin (no public link by design).
-
-## ریموت گیت‌لب
-
-پروژه روی هر دو ریموت نگه‌داری می‌شود:
-- `origin` → GitHub
-- `gitlab` → GitLab (Chabokan)
-
-برای push:
-
-```bash
-git push
-```
-
-این دستور هر دو ریموت را همزمان به‌روز می‌کند.
