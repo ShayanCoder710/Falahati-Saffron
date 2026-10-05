@@ -18,9 +18,13 @@
                 {% for c in coupons %}
                 <div class="discount-row">
                     <div class="discount-info">
+                        {% if c.title %}<span class="discount-title">{{ c.title }}</span>{% endif %}
                         <span class="discount-percent">{{ c.percent | fa_num }}٪</span>
                         <span class="discount-range">{{ c.code }}</span>
                         <span class="discount-range">انقضا: {{ c.expires_at | fa_date }}</span>
+                        {% if c.item_limit %}
+                        <span class="discount-range">روی {{ c.item_limit | fa_num }} کالای اول سبد</span>
+                        {% endif %}
                         <span class="discount-range">{{ c.used_count | fa_num }} از {{ c.max_uses | fa_num }} استفاده</span>
                     </div>
                     <form method="POST" action="{{ url_for('admin_coupon_delete', cid=c.id) }}">
@@ -37,12 +41,20 @@
                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 <div class="discount-fields discount-fields--four">
                     <div class="form-group">
+                        <label for="c_title">عنوان کد</label>
+                        <input type="text" id="c_title" name="title" maxlength="200" placeholder="مثلاً جشنواره تابستون">
+                    </div>
+                    <div class="form-group">
                         <label for="code">کد تخفیف</label>
                         <input type="text" id="code" name="code" placeholder="مثلاً SAFFRON20" dir="ltr">
                     </div>
                     <div class="form-group">
                         <label for="percent">درصد تخفیف (۱ تا ۹۰)</label>
                         <input type="number" id="percent" name="percent" min="1" max="90" placeholder="مثلاً ۲۰">
+                    </div>
+                    <div class="form-group">
+                        <label for="item_limit">تعداد کالا (خالی = همه)</label>
+                        <input type="number" id="item_limit" name="item_limit" min="1" placeholder="مثلاً ۲">
                     </div>
                     <div class="form-group">
                         <label for="expires_at">تاریخ انقضا (شمسی)</label>

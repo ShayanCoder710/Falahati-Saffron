@@ -2109,6 +2109,12 @@ code {
     font-weight: 600;
 }
 
+.discount-title {
+    font-size: .95rem;
+    color: var(--text);
+    font-weight: 800;
+}
+
 .discount-price {
     font-size: .84rem;
     color: var(--text-soft);

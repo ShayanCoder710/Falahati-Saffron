@@ -67,8 +67,10 @@ class Discount(db.Model):
 
     id = db.Column(db.Integer, primary_key=True)
     product_id = db.Column(db.Integer, db.ForeignKey('product.id'), nullable=True)
+    title = db.Column(db.String(200), nullable=True)
     min_quantity = db.Column(db.Integer, nullable=False, default=1)
     max_quantity = db.Column(db.Integer, nullable=True)
+    max_items = db.Column(db.Integer, nullable=True)
     percent = db.Column(db.Integer, nullable=False, default=0)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
@@ -80,7 +82,9 @@ class Coupon(db.Model):
 
     id = db.Column(db.Integer, primary_key=True)
     code = db.Column(db.String(50), unique=True, nullable=False)
+    title = db.Column(db.String(200), nullable=True)
     percent = db.Column(db.Integer, nullable=False, default=0)
+    item_limit = db.Column(db.Integer, nullable=True)
     expires_at = db.Column(db.DateTime, nullable=False)
     max_uses = db.Column(db.Integer, nullable=False)
     used_count = db.Column(db.Integer, nullable=False, default=0)

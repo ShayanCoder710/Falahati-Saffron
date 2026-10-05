@@ -699,6 +699,8 @@ def create_app():
             return redirect(url_for('admin_login'))
         min_qty = parse_int(request.form.get('min_quantity'), minimum=1, maximum=100000)
         max_qty = parse_optional_int(request.form.get('max_quantity'), minimum=1, maximum=100000)
+        max_items = parse_optional_int(request.form.get('max_items'), minimum=1, maximum=100000)
+        title = optional_text(request.form.get('title'), 200)
         percent = parse_int(request.form.get('percent'), minimum=1, maximum=90)
         if percent is INVALID:
             flash('درصد تخفیف باید بین ۱ تا ۹۰ باشد', 'danger')
@@ -709,17 +711,35 @@ def create_app():
         if max_qty is INVALID:
             flash('حداکثر تعداد باید عدد مثبت باشد', 'danger')
             return redirect(url_for('admin_discounts'))
+        if max_items is INVALID:
+            flash('حداکثر تعداد کالا باید عدد مثبت باشد', 'danger')
+            return redirect(url_for('admin_discounts'))
         if max_qty is not None and max_qty < min_qty:
             flash('حداکثر تعداد نمی‌تواند کمتر از حداقل باشد', 'danger')
             return redirect(url_for('admin_discounts'))
+        existing = Discount.query.filter(Discount.product_id.is_(None)).all()
+        if existing and request.form.get('replace') != 'yes':
+            old = existing[0]
+            label = old.title or f'تخفیف {old.percent}٪'
+            flash(
+                f'یک تخفیف سراسری فعال است ({label}). اگر تایید می‌کنید، '
+                f'آن حذف و این تخفیف جایگزین می‌شود.', 'warning')
+            return redirect(url_for('admin_discounts'))
+        for old in existing:
+            db.session.delete(old)
         db.session.add(Discount(
             product_id=None,
+            title=title,
             min_quantity=min_qty,
             max_quantity=max_qty,
+            max_items=max_items,
             percent=percent,
         ))
         db.session.commit()
-        flash('تخفیف سراسری ثبت شد و روی همه محصولات اعمال می‌شود', 'success')
+        if existing:
+            flash('تخفیف سراسری قبلی حذف و تخفیف جدید اعمال شد', 'success')
+        else:
+            flash('تخفیف سراسری ثبت شد و روی همه محصولات اعمال می‌شود', 'success')
         return redirect(url_for('admin_discounts'))
 
     @app.route('/admin/discounts/<int:did>/delete', methods=['POST'])
@@ -752,6 +772,8 @@ def create_app():
         percent = parse_int(request.form.get('percent'), minimum=1, maximum=90)
         expires = parse_jalali_date(request.form.get('expires_at'))
         max_uses = parse_int(request.form.get('max_uses'), minimum=1, maximum=1000000)
+        item_limit = parse_optional_int(request.form.get('item_limit'), minimum=1, maximum=100000)
+        title = optional_text(request.form.get('title'), 200)
         if not code:
             flash('کد تخفیف الزامی است', 'danger')
             return redirect(url_for('admin_coupons'))
@@ -771,9 +793,15 @@ def create_app():
         if max_uses is INVALID:
             flash('سقف استفاده باید عدد مثبت باشد', 'danger')
             return redirect(url_for('admin_coupons'))
-        db.session.add(Coupon(code=code, percent=percent, expires_at=expires, max_uses=max_uses))
+        if item_limit is INVALID:
+            flash('تعداد کالا باید عدد مثبت باشد', 'danger')
+            return redirect(url_for('admin_coupons'))
+        db.session.add(Coupon(code=code, title=title, percent=percent,
+                              item_limit=item_limit, expires_at=expires,
+                              max_uses=max_uses))
         db.session.commit()
-        flash(f'کد تخفیف {code} با {percent}٪ ثبت شد', 'success')
+        scope = f' روی {item_limit} کالای اول سبد' if item_limit else ''
+        flash(f'کد تخفیف {code} با {percent}٪ ثبت شد{scope}', 'success')
         return redirect(url_for('admin_coupons'))
 
     @app.route('/admin/coupons/<int:cid>/delete', methods=['POST'])

@@ -153,16 +153,36 @@ def discount_price(discount, quantity, unit_price):
     return round(float(unit_price) * (100 - discount.percent) / 100, 2)
 
 
-def best_discount(product_id, quantity):
-    if product_id is None:
-        candidates = Discount.query.filter(Discount.product_id.is_(None)).all()
-    else:
-        candidates = Discount.query.filter(or_(
-            Discount.product_id == product_id,
-            Discount.product_id.is_(None),
-        )).all()
+def per_product_discount(product_id, quantity):
+    candidates = Discount.query.filter(
+        Discount.product_id == product_id).all()
     matches = [d for d in candidates if discount_applies(d, quantity)]
     return max(matches, key=lambda d: d.percent) if matches else None
+
+
+def active_global_discount():
+    return Discount.query.filter(Discount.product_id.is_(None)).first()
+
+
+def coupon_covers(coupon_percent, items, coupon):
+    if not coupon_percent:
+        return [False] * len(items)
+    limit = getattr(coupon, 'item_limit', None) if coupon else None
+    if not limit:
+        return [True] * len(items)
+    flags, used = [], 0
+    for item in items:
+        if item.get('discount_percent', 0) >= coupon_percent:
+            flags.append(False)
+            continue
+        room = limit - used
+        if room <= 0:
+            flags.append(False)
+            continue
+        flags.append(item['quantity'] <= room)
+        if item['quantity'] <= room:
+            used += item['quantity']
+    return flags
 
 
 def safe_redirect_target(raw, fallback):
@@ -251,7 +271,7 @@ def release_coupon(order):
 
 
 def unit_price_for(product, quantity, coupon_percent=0):
-    discount = best_discount(product.id, quantity)
+    discount = per_product_discount(product.id, quantity)
     base = float(product.price)
     tier_percent = discount.percent if discount else 0
     winner = max(tier_percent, coupon_percent)
@@ -382,9 +402,10 @@ def get_cart():
 
 
 def get_cart_details():
-    details, total = [], 0
     coupon = active_coupon()
     coupon_percent = coupon.percent if coupon else 0
+    global_discount = active_global_discount()
+    lines = []
     for entry in get_cart():
         product = db.session.get(Product, entry['product_id'])
         if not product:
@@ -392,17 +413,47 @@ def get_cart_details():
         quantity = min(int(entry['quantity']), product.stock or 0)
         if quantity < 1:
             continue
-        discount = best_discount(product.id, quantity)
-        unit_price, winner = unit_price_for(product, quantity, coupon_percent)
+        discount = per_product_discount(product.id, quantity)
+        tier_percent = discount.percent if discount else 0
+        lines.append({
+            'product': product,
+            'quantity': quantity,
+            'max_qty': product.stock or 0,
+            'discount': discount,
+            'discount_percent': tier_percent,
+        })
+
+    flags = coupon_covers(coupon_percent, lines, coupon)
+    total, used_items = 0, 0
+    details = []
+    for index, line in enumerate(lines):
+        product = line['product']
+        quantity = line['quantity']
+        base = float(product.price)
+        tier_percent = line['discount_percent']
+        winner = max(tier_percent, coupon_percent if flags[index] else 0)
+        if global_discount and global_discount.percent > winner:
+            limit = global_discount.max_items
+            room = (limit - used_items) if limit else 0
+            if not limit or quantity <= room:
+                winner = global_discount.percent
+                if limit:
+                    used_items += quantity
+        percent = winner
+        unit_price = round(base * (100 - percent) / 100, 2)
+        applied_global = None
+        if global_discount and percent == global_discount.percent and percent:
+            applied_global = global_discount
         details.append({
             'product': product,
             'quantity': quantity,
             'max_qty': product.stock or 0,
             'unit_price': unit_price,
-            'discount': discount,
-            'coupon': coupon,
-            'winner_percent': winner,
-            'saved': round(float(product.price) - unit_price, 2) * quantity,
+            'discount': line['discount'],
+            'coupon': coupon if flags[index] else None,
+            'winner_percent': percent or None,
+            'global_discount': applied_global,
+            'saved': round(base - unit_price, 2) * quantity,
         })
         total += unit_price * quantity
     return details, total

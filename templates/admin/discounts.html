@@ -10,19 +10,24 @@
         </div>
         <div class="about-admin-card">
             <div class="about-admin-card-head">
-                <h3>تخفیف‌های سراسری فعال</h3>
-                <p>در صورت همپوشانی با تخفیف محصول، بیشترین درصد اعمال می‌شود</p>
+                <h3>تخفیف سراسری فعال</h3>
+                <p>فقط یک تخفیف سراسری در هر لحظه فعال است. در صورت همپوشانی با تخفیف محصول یا کد تخفیف، بیشترین درصد اعمال می‌شود</p>
             </div>
             {% if global_discounts %}
             <div class="discount-list">
                 {% for d in global_discounts %}
                 <div class="discount-row">
                     <div class="discount-info">
+                        {% if d.title %}<span class="discount-title">{{ d.title }}</span>{% endif %}
                         <span class="discount-percent">{{ d.percent | fa_num }}٪</span>
                         <span class="discount-range">
                             {% if d.max_quantity %}از {{ d.min_quantity | fa_num }} تا {{ d.max_quantity | fa_num }} عدد{% else %}از {{ d.min_quantity | fa_num }} عدد به بالا{% endif %}
                         </span>
+                        {% if d.max_items %}
+                        <span class="discount-range">روی {{ d.max_items | fa_num }} کالای اول سبد هر کاربر</span>
+                        {% else %}
                         <span class="discount-range">روی همه محصولات</span>
+                        {% endif %}
                     </div>
                     <form method="POST" action="{{ url_for('admin_global_discount_delete', did=d.id) }}">
                         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
@@ -38,21 +43,35 @@
                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 <div class="discount-fields">
                     <div class="form-group">
-                        <label for="min_quantity">حداقل تعداد</label>
+                        <label for="d_title">عنوان (دلیل تخفیف)</label>
+                        <input type="text" id="d_title" name="title" maxlength="200" placeholder="مثلاً جشنواره تابستونه">
+                    </div>
+                    <div class="form-group">
+                        <label for="min_quantity">حداقل تعداد هر محصول</label>
                         <input type="number" id="min_quantity" name="min_quantity" min="1" placeholder="مثلاً ۲">
                     </div>
                     <div class="form-group">
-                        <label for="max_quantity">حداکثر تعداد (خالی = نامحدود)</label>
+                        <label for="max_quantity">حداکثر تعداد هر محصول (خالی = نامحدود)</label>
                         <input type="number" id="max_quantity" name="max_quantity" min="1" placeholder="خالی بگذارید">
+                    </div>
+                    <div class="form-group">
+                        <label for="max_items">حداکثر کالای تخفیف‌خورده (خالی = همه)</label>
+                        <input type="number" id="max_items" name="max_items" min="1" placeholder="مثلاً ۴">
                     </div>
                     <div class="form-group">
                         <label for="percent">درصد تخفیف (۱ تا ۹۰)</label>
                         <input type="number" id="percent" name="percent" min="1" max="90" placeholder="مثلاً ۱۰">
                     </div>
                 </div>
+                {% if global_discounts %}
+                <div class="form-actions">
+                    <button type="submit" class="btn btn-secondary" name="replace" value="ask">جایگزینی تخفیف فعال</button>
+                </div>
+                {% else %}
                 <div class="form-actions">
                     <button type="submit" class="btn btn-primary">افزودن تخفیف سراسری</button>
                 </div>
+                {% endif %}
             </form>
         </div>
     </div>
